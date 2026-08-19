@@ -18,25 +18,22 @@ export default function Hero({ showApp }: HeroProps) {
 
   useEffect(() => {
     const heroPlayed = sessionStorage.getItem("heroPlayed");
-
-    if (heroPlayed === "true") {
-      setStartAnim(true);
-      return;
-    }
-
-    const delay = 3600;
+    const delay = heroPlayed === "true" ? 0 : 3600;
 
     const textTimer = setTimeout(() => {
       setStartAnim(true);
     }, delay);
 
-    const appTimer = setTimeout(() => {
-      sessionStorage.setItem("heroPlayed", "true");
-    }, delay + 1500);
+    const appTimer =
+      heroPlayed === "true"
+        ? undefined
+        : setTimeout(() => {
+            sessionStorage.setItem("heroPlayed", "true");
+          }, delay + 1500);
 
     return () => {
       clearTimeout(textTimer);
-      clearTimeout(appTimer);
+      if (appTimer) clearTimeout(appTimer);
     };
   }, []);
 
@@ -91,7 +88,7 @@ export default function Hero({ showApp }: HeroProps) {
         >
           <Circle size={8} className="fill-emerald-400 text-emerald-400" />
           <span className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
-            Disponible pour travailler
+            RAKOTONIAINA Mamy Navalona Antonio
           </span>
         </motion.div>
 
@@ -141,10 +138,10 @@ export default function Hero({ showApp }: HeroProps) {
           <span className="font-mono text-[15px] tracking-[0.1em] text-[var(--text-secondary)]">
             <TextType
               text={[
-                "Programmeur Junior",
-                "Développeur Web junior",
-                "Jeune diplômé",
-                "Bon code !",
+                "Développeur Full Stack junior",
+                "Développeur Web",
+                "React • Next.js • TypeScript",
+                "Ouvert aux opportunités",
               ]}
               typingSpeed={75}
               pauseDuration={1500}

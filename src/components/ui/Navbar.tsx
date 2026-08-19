@@ -22,7 +22,6 @@ export default function Navbar() {
   const settleTimeoutId = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    setMounted(true);
 
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -52,13 +51,18 @@ export default function Navbar() {
       }
     };
 
-    handleResize();
-    handleScroll();
+    
+    const frameId = requestAnimationFrame(() => {
+      setMounted(true);
+      handleResize();
+      handleScroll();
+    });
 
     window.addEventListener("resize", handleResize);
     window.addEventListener("scroll", handleScroll);
 
     return () => {
+      cancelAnimationFrame(frameId);
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("scroll", handleScroll);
     };
@@ -67,16 +71,14 @@ export default function Navbar() {
   // animation navbar uniquement au refresh
   useEffect(() => {
     const navbarPlayed = sessionStorage.getItem("navbarPlayed");
-
-    if (navbarPlayed) {
-      setShowNavbar(true);
-      return;
-    }
+    const delay = navbarPlayed ? 0 : 3800;
 
     const timer = setTimeout(() => {
       setShowNavbar(true);
-      sessionStorage.setItem("navbarPlayed", "true");
-    }, 3800);
+      if (!navbarPlayed) {
+        sessionStorage.setItem("navbarPlayed", "true");
+      }
+    }, delay);
 
     return () => clearTimeout(timer);
   }, []);

@@ -43,7 +43,7 @@ export default function TechStackPage() {
     };
   }, []);
 
-  const fetchTechStacks = async () => {
+  async function fetchTechStacks() {
     const { data } = await supabase
       .from("tech_stack")
       .select("*");

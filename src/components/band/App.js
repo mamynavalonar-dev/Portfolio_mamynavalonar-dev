@@ -1,7 +1,7 @@
 "use client";
 import "./index.css";
 import * as THREE from "three";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, extend, useThree, useFrame } from "@react-three/fiber";
 import {
   useGLTF,
@@ -139,18 +139,26 @@ function Band({ isMobile, maxSpeed = 50, minSpeed = 10 }) {
   };
 
   const { nodes, materials } = useGLTF(GLTF_PATH);
-  const texture = useTexture(TEXTURE_PATH);
+  const sourceTexture = useTexture(TEXTURE_PATH);
+  const texture = useMemo(() => {
+    const clonedTexture = sourceTexture.clone();
+    clonedTexture.wrapS = THREE.RepeatWrapping;
+    clonedTexture.wrapT = THREE.RepeatWrapping;
+    clonedTexture.needsUpdate = true;
+    return clonedTexture;
+  }, [sourceTexture]);
   const { width, height } = useThree((state) => state.size);
 
-  const [curve] = useState(
-    () =>
-      new THREE.CatmullRomCurve3([
+  const [curve] = useState(() => {
+    const nextCurve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(),
         new THREE.Vector3(),
         new THREE.Vector3(),
         new THREE.Vector3(),
-      ]),
-  );
+      ]);
+    nextCurve.curveType = "chordal";
+    return nextCurve;
+  });
 
   const [dragged, drag] = useState(false);
   const [hovered, hover] = useState(false);
@@ -235,11 +243,7 @@ function Band({ isMobile, maxSpeed = 50, minSpeed = 10 }) {
       });
     }
   });
-
-  curve.curveType = "chordal";
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-
-  return (
+return (
     <>
       <group position={[3, 4, 0]}>
         <RigidBody ref={fixed} {...segmentProps} type="fixed" />

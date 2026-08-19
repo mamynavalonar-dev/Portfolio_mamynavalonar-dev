@@ -43,7 +43,7 @@ export default function CertificatesPage() {
     };
   }, []);
 
-  const fetchCertificates = async () => {
+  async function fetchCertificates() {
   const { data } = await supabase
     .from("certificates")
     .select("*")
@@ -112,10 +112,10 @@ export default function CertificatesPage() {
     }
 
     setSaving(false);
-setOpen(false);
-resetForm();
+    setOpen(false);
+    resetForm();
 
-fetchCertificates
+    await fetchCertificates();
   };
 
   const handleDelete = async (id: number) => {
@@ -289,7 +289,7 @@ fetchCertificates
                   <Upload size={24} className="text-white/50 mb-2" />
 
                   <p className="text-sm text-white/60">
-                    Importer l'image du certificat
+                    Importer l&apos;image du certificat
                   </p>
                 </>
               )}

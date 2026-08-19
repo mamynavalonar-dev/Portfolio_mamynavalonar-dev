@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion, Variants } from "framer-motion";
 import { Code, Award, Globe, FileText, ArrowUpRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -65,18 +65,7 @@ export default function About() {
   const [projectCount, setProjectCount] = useState(0);
   const [certificateCount, setCertificateCount] = useState(0);
 
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-
-    check();
-    window.addEventListener("resize", check);
-
-    fetchStats();
-
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
-  const fetchStats = async () => {
+    const fetchStats = useCallback(async () => {
     try {
       const { count: projects } = await supabase
         .from("projects")
@@ -92,7 +81,25 @@ export default function About() {
       setProjectCount(0);
       setCertificateCount(0);
     }
-  };
+  
+  }, []);
+
+useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+
+    check();
+    window.addEventListener("resize", check);
+
+    const statsTimer = setTimeout(() => {
+      void fetchStats();
+    }, 0);
+
+    return () => {
+      clearTimeout(statsTimer);
+      window.removeEventListener("resize", check);
+    };
+  }, [fetchStats]);
+
 
   const scrollToPortfolio = () => {
     const el = document.getElementById("portfolio");
@@ -232,11 +239,11 @@ export default function About() {
                 maxWidth: isMobile ? "100%" : "490px",
               }}
             >
-              Jeune diplômé d&apos;un lycée professionnel en génie logiciel
-              (promotion 2026), passionné par le développement frontend et les
-              interfaces modernes. Je me concentre sur la création de sites web
-              propres, responsives et visuellement percutants pour offrir une
-              expérience numérique optimale.
+              Développeur Full Stack junior passionné par la création
+              d&apos;applications web modernes, fiables et responsives. Je
+              développe des interfaces soignées et des fonctionnalités complètes
+              en accordant une attention particulière à la qualité du code, à
+              l&apos;expérience utilisateur et aux données.
             </motion.p>
 
             {/* QUOTE */}

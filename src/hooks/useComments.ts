@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { PortfolioComment } from '@/types'
 import {
   fetchCommentsService,
   createCommentService,
@@ -10,11 +11,23 @@ import {
 } from '@/lib/commentService'
 
 export default function useComments() {
-  const [comments, setComments] = useState<any[]>([])
+  const [comments, setComments] = useState<PortfolioComment[]>([])
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    fetchInitialComments()
+    const fetchInitialComments = useCallback(async () => {
+    try {
+      const data = await fetchCommentsService()
+      setComments(data)
+    } catch (err) {
+      console.log(err)
+    }
+  
+  }, []);
+
+useEffect(() => {
+    const timer = setTimeout(() => {
+      void fetchInitialComments()
+    }, 0)
 
     const channel = supabase
       .channel('comments-live')
@@ -33,18 +46,11 @@ export default function useComments() {
       .subscribe()
 
     return () => {
+      clearTimeout(timer)
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [fetchInitialComments])
 
-  const fetchInitialComments = async () => {
-    try {
-      const data = await fetchCommentsService()
-      setComments(data)
-    } catch (err) {
-      console.log(err)
-    }
-  }
 
   const addComment = async ({
     name,

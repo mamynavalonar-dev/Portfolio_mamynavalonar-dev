@@ -24,3 +24,22 @@ export interface Certificate {
   image_url: string;
   created_at: string;
 }
+
+export interface CommentReply {
+  username: string;
+  message: string;
+  created_at: string;
+}
+
+export interface PortfolioComment {
+  id: number;
+  name: string;
+  username?: string | null;
+  comment: string;
+  image_url: string | null;
+  likes: number;
+  replies: CommentReply[];
+  is_pinned: boolean;
+  liked_by_admin?: boolean;
+  created_at: string;
+}

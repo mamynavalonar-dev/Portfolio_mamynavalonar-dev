@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/app/admin/Sidebar";
 import { supabase } from "@/lib/supabase";
+import { PortfolioComment } from "@/types";
 import {
   Eye,
   Users,
@@ -25,14 +26,14 @@ export default function DashboardPage() {
     pinned: 0,
   });
 
-  const [recentComments, setRecentComments] = useState<any[]>([]);
+  const [recentComments, setRecentComments] = useState<PortfolioComment[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     checkAuth();
   }, []);
 
-  const checkAuth = async () => {
+  async function checkAuth() {
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -46,7 +47,7 @@ export default function DashboardPage() {
     fetchDashboard();
   };
 
-  const fetchDashboard = async () => {
+  async function fetchDashboard() {
     try {
       const [
         projectsRes,

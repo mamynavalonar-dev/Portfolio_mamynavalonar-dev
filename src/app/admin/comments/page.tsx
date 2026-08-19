@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Sidebar from "@/app/admin/Sidebar";
 import { supabase } from "@/lib/supabase";
 import Swal from "sweetalert2";
+import { PortfolioComment } from "@/types";
 import {
   Trash2,
   Pin,
@@ -14,7 +15,7 @@ import {
 } from "lucide-react";
 
 export default function AdminCommentsPage() {
-  const [comments, setComments] = useState<any[]>([]);
+  const [comments, setComments] = useState<PortfolioComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [replyText, setReplyText] = useState<Record<number, string>>({});
 
@@ -41,7 +42,7 @@ export default function AdminCommentsPage() {
     };
   }, []);
 
-  const fetchComments = async () => {
+  async function fetchComments() {
     setLoading(true);
 
     const { data } = await supabase
@@ -253,7 +254,7 @@ export default function AdminCommentsPage() {
                         )}
 
                         <div className="flex flex-wrap items-center gap-3 text-[11px] text-white/35">
-                          <span>{comment.likes || 0} j'aime</span>
+                          <span>{comment.likes || 0} j&apos;aime</span>
 
                           <span>
                             {new Date(comment.created_at).toLocaleDateString()}
@@ -268,7 +269,7 @@ export default function AdminCommentsPage() {
                             addLike(
                               comment.id,
                               comment.likes,
-                              comment.liked_by_admin,
+                              Boolean(comment.liked_by_admin),
                             )
                           }
                           className={`w-11 h-11 rounded-2xl border flex items-center justify-center transition ${

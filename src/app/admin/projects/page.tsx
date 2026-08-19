@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/app/admin/Sidebar";
 import { Plus } from "lucide-react";
@@ -15,8 +15,29 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchProjects();
+    const fetchProjects = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("projects")
+      .select("*");
+
+    if (!error && data) {
+      const sortedProjects = data.sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() -
+          new Date(b.created_at).getTime()
+      );
+
+      setProjects(sortedProjects);
+    }
+
+    setLoading(false);
+  
+  }, []);
+
+useEffect(() => {
+    const timer = setTimeout(() => {
+      void fetchProjects();
+    }, 0);
 
     const channel = supabase
       .channel("projects-realtime")
@@ -34,27 +55,11 @@ export default function ProjectsPage() {
       .subscribe();
 
     return () => {
+      clearTimeout(timer);
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchProjects]);
 
-  const fetchProjects = async () => {
-    const { data, error } = await supabase
-      .from("projects")
-      .select("*");
-
-    if (!error && data) {
-      const sortedProjects = data.sort(
-        (a, b) =>
-          new Date(a.created_at).getTime() -
-          new Date(b.created_at).getTime()
-      );
-
-      setProjects(sortedProjects);
-    }
-
-    setLoading(false);
-  };
 
   const handleAdd = (newProject: Project) => {
     setProjects((prev) => {

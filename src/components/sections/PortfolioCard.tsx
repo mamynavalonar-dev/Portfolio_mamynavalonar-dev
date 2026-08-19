@@ -8,8 +8,8 @@ type Props = {
   description: string;
   index: number;
   id?: string;
-  image?: string;
-  live_url?: string;
+  image?: string | null;
+  live_url?: string | null;
   onDetailsClick?: () => void;
 };
 

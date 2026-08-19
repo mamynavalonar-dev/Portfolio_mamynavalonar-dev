@@ -17,56 +17,63 @@ export default function Home() {
   const [showWelcome, setShowWelcome] = useState(false)
   const [showApp, setShowApp] = useState(true)
 
-useEffect(() => {
-  const currentHash = window.location.hash
-  const pathname = window.location.pathname
+  useEffect(() => {
+    let introTimer: ReturnType<typeof setTimeout> | undefined
 
-  // kalau balik dari detail ke portfolio
-  if (currentHash === '#portfolio') {
-    setShowWelcome(false)
-    setShowApp(true)
-    return
-  }
+    const initializeTimer = setTimeout(() => {
+      const currentHash = window.location.hash
+      const pathname = window.location.pathname
 
-  const navEntries = performance.getEntriesByType('navigation')
-  const navigationType =
-    navEntries.length > 0
-      ? (navEntries[0] as PerformanceNavigationTiming).type
-      : null
+      if (currentHash === '#portfolio') {
+        setShowWelcome(false)
+        setShowApp(true)
+        return
+      }
 
-  const isReload = navigationType === 'reload'
+      const navEntries = performance.getEntriesByType('navigation')
+      const navigationType =
+        navEntries.length > 0
+          ? (navEntries[0] as PerformanceNavigationTiming).type
+          : null
 
-  // hanya homepage yang reset intro
-  if (isReload && pathname === '/') {
-    sessionStorage.removeItem('introPlayed')
-    sessionStorage.removeItem('heroPlayed')
+      const isReload = navigationType === 'reload'
 
-    if (window.location.hash) {
-      history.replaceState(null, '', '/')
-    }
+      if (isReload && pathname === '/') {
+        sessionStorage.removeItem('introPlayed')
+        sessionStorage.removeItem('heroPlayed')
 
-    window.scrollTo({
-      top: 0,
-      behavior: 'instant',
-    })
-  }
+        if (window.location.hash) {
+          history.replaceState(null, '', '/')
+        }
 
-  if (!hasPlayedIntro()) {
-    setShowWelcome(true)
-    setShowApp(false)
+        window.scrollTo({
+          top: 0,
+          behavior: 'instant',
+        })
+      }
 
-    const timer = setTimeout(() => {
+      if (!hasPlayedIntro()) {
+        setShowWelcome(true)
+        setShowApp(false)
+
+        introTimer = setTimeout(() => {
+          setShowWelcome(false)
+          setShowApp(true)
+          setIntroPlayed()
+        }, 2800)
+
+        return
+      }
+
       setShowWelcome(false)
       setShowApp(true)
-      setIntroPlayed()
-    }, 2800)
+    }, 0)
 
-    return () => clearTimeout(timer)
-  } else {
-    setShowWelcome(false)
-    setShowApp(true)
-  }
-}, [])
+    return () => {
+      clearTimeout(initializeTimer)
+      if (introTimer) clearTimeout(introTimer)
+    }
+  }, [])
 
   return (
     <main style={{ position: 'relative', overflow: 'hidden' }}>

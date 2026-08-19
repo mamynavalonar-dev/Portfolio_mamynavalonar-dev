@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { Project, Certificate, TechStack } from '@/types'
 import {
   fetchCertificates,
   fetchProjects,
@@ -8,19 +9,15 @@ import {
 } from '@/lib/portfolioService'
 
 export default function usePortfolio() {
-  const [projects, setProjects] = useState<any[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [certificates, setCertificates] =
-    useState<any[]>([])
+    useState<Certificate[]>([])
   const [techStacks, setTechStacks] =
-    useState<any[]>([])
+    useState<TechStack[]>([])
 
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    loadPortfolio()
-  }, [])
-
-  const loadPortfolio = async () => {
+    const loadPortfolio = useCallback(async () => {
     const cachedProjects =
       sessionStorage.getItem(
         'portfolioProjects'
@@ -82,7 +79,17 @@ export default function usePortfolio() {
     )
 
     setLoading(false)
-  }
+  
+  }, []);
+
+useEffect(() => {
+    const timer = setTimeout(() => {
+      void loadPortfolio()
+    }, 0)
+
+    return () => clearTimeout(timer)
+  }, [loadPortfolio])
+
 
   return {
     projects,

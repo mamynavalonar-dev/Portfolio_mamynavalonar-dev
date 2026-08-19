@@ -3,10 +3,11 @@
 
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
+import { Project } from '@/types'
 import {
   ArrowLeft,
   ChevronLeft,
@@ -24,7 +25,8 @@ export default function PortfolioDetailPage() {
   const { id } = useParams()
   const router = useRouter()
 
-  const [project, setProject] = useState<any>({
+  const [project, setProject] = useState<Project>({
+    id: '',
     title: '',
     description: '',
     technologies: '',
@@ -33,16 +35,13 @@ export default function PortfolioDetailPage() {
     image_urls: [],
     live_url: '',
     github_url: '',
+    created_at: '',
   })
 
   const [currentImage, setCurrentImage] = useState(0)
   const [previewOpen, setPreviewOpen] = useState(false)
 
-  useEffect(() => {
-    fetchProject()
-  }, [])
-
-  const fetchProject = async () => {
+    const fetchProject = useCallback(async () => {
     const { data } = await supabase
       .from('projects')
       .select('*')
@@ -52,7 +51,17 @@ export default function PortfolioDetailPage() {
     if (data) {
       setProject(data)
     }
-  }
+  
+  }, [id]);
+
+useEffect(() => {
+    const timer = setTimeout(() => {
+      void fetchProject()
+    }, 0)
+
+    return () => clearTimeout(timer)
+  }, [fetchProject])
+
 
   const tech = (project?.technologies || '')
     .split(',')
@@ -401,7 +410,7 @@ export default function PortfolioDetailPage() {
 
                 {galleryImages.length > 1 && (
                   <div className="flex justify-center gap-2 mt-3">
-                    {galleryImages.map((_: any, i: number) => (
+                    {galleryImages.map((_: string, i: number) => (
                       <motion.button
                         key={i}
                         initial={{

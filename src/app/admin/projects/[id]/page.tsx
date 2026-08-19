@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
@@ -17,7 +17,6 @@ import {
   ChevronRight,
   X,
 } from "lucide-react";
-import { Project } from "@/types";
 import { Project } from "@/types";
 
 export default function ProjectDetailPage() {
@@ -41,11 +40,7 @@ export default function ProjectDetailPage() {
   const [currentImage, setCurrentImage] = useState(0);
   const [previewOpen, setPreviewOpen] = useState(false);
 
-  useEffect(() => {
-    fetchProject();
-  }, []);
-
-  const fetchProject = async () => {
+    const fetchProject = useCallback(async () => {
     const { data } = await supabase
       .from("projects")
       .select("*")
@@ -54,7 +49,17 @@ export default function ProjectDetailPage() {
 
     setProject(data);
     setForm(data);
-  };
+  
+  }, [id]);
+
+useEffect(() => {
+    const timer = setTimeout(() => {
+      void fetchProject();
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [fetchProject]);
+
 
   const handleDelete = async () => {
   const result = await Swal.fire({
@@ -436,7 +441,7 @@ export default function ProjectDetailPage() {
 
               {galleryImages.length > 1 && (
                 <div className="flex justify-center gap-2 mt-4">
-                  {galleryImages.map((_: any, i: number) => (
+                  {galleryImages.map((_: string, i: number) => (
                     <button
                       key={i}
                       onClick={() => setCurrentImage(i)}
