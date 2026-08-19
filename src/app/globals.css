@@ -1,0 +1,183 @@
+@import url("https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Base */
+  --bg-primary: #0d0d0d;
+  --bg-secondary: #141414;
+  --bg-card: #1a1a1a;
+  --border: #2a2a2a;
+  --text-primary: #f0f0f0;
+  --text-secondary: #888888;
+  --text-muted: #555555;
+  --accent: #d4d4d4;
+
+  /* Glassmorphism */
+  --glass-bg: rgba(20, 20, 20, 0.55);
+  --glass-bg-scrolled: rgba(13, 13, 13, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-blur: 16px;
+
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #f0f0f0 0%, #888888 100%);
+  --gradient-glow: radial-gradient(
+    circle at 50% 0%,
+    rgba(255, 255, 255, 0.12),
+    transparent 70%
+  );
+  --gradient-border: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.25),
+    rgba(255, 255, 255, 0)
+  );
+
+  /* Shadows / glow */
+  --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 24px rgba(255, 255, 255, 0.08);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scrollbar-width: none; /* Firefox */
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: "Syne", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  -ms-overflow-style: none; /* IE + Edge */
+}
+
+/* Sélection de texte : autorisée uniquement là où c'est utile (contenu textuel),
+   plutôt qu'une désactivation globale qui nuit à l'accessibilité et à l'UX */
+p,
+span,
+h1,
+h2,
+h3,
+h4,
+li,
+label {
+  user-select: text;
+}
+
+input,
+textarea {
+  caret-color: white;
+  user-select: text;
+}
+
+/* Hide scrollbar global (Webkit) */
+::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+.custom-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================================
+   UTILITAIRES DESIGN — Glassmorphism / Gradient / Glow
+   ============================================================ */
+
+@layer components {
+  /* Panneau verre, base de la navbar / cartes / modales */
+  .glass-panel {
+    background-color: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+  }
+
+  /* Texte en dégradé, pour les titres d'accroche */
+  .text-gradient {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Halo lumineux discret derrière un élément (héro, cartes) */
+  .glow-bg {
+    position: relative;
+  }
+  .glow-bg::before {
+    content: "";
+    position: absolute;
+    inset: -20%;
+    background: var(--gradient-glow);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  /* Bordure en dégradé animée au survol (cartes / boutons) */
+  .glow-border {
+    position: relative;
+    isolation: isolate;
+  }
+  .glow-border::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: var(--gradient-border);
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+  .glow-border:hover::after {
+    opacity: 1;
+  }
+
+  /* Bouton CTA principal, style pilule avec glow au survol */
+  .btn-glow {
+    @apply relative inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-all duration-300;
+    background-color: var(--text-primary);
+    color: var(--bg-primary);
+  }
+  .btn-glow:hover {
+    box-shadow:
+      var(--shadow-glow),
+      0 0 40px rgba(255, 255, 255, 0.18);
+    transform: translateY(-2px);
+  }
+}
