@@ -5,6 +5,7 @@ import Sidebar from "@/app/admin/Sidebar";
 import { supabase } from "@/lib/supabase";
 import Swal from "sweetalert2";
 import { PortfolioComment } from "@/types";
+import ResponsiveImage from "@/components/ui/ResponsiveImage";
 import {
   Trash2,
   Pin,
@@ -109,19 +110,16 @@ export default function AdminCommentsPage() {
   };
 
   const addLike = async (id: number, likes: number, liked: boolean) => {
-    const newLiked = !liked;
+    const { data, error } = await supabase.rpc(
+      "toggle_admin_comment_like",
+      { p_comment_id: id },
+    );
 
-    const newLikes = newLiked
-      ? (likes || 0) + 1
-      : Math.max((likes || 1) - 1, 0);
+    if (error) return;
 
-    await supabase
-      .from("comments")
-      .update({
-        likes: newLikes,
-        liked_by_admin: newLiked,
-      })
-      .eq("id", id);
+    const updated = Array.isArray(data) ? data[0] : data;
+    const newLiked = updated?.liked_by_admin ?? !liked;
+    const newLikes = updated?.likes ?? likes;
 
     setComments((prev) =>
       prev.map((item) =>
@@ -141,24 +139,15 @@ export default function AdminCommentsPage() {
 
     if (!text?.trim()) return;
 
-    const target = comments.find((x) => x.id === commentId);
+    const { data, error } = await supabase.rpc(
+      "append_admin_comment_reply",
+      { p_comment_id: commentId, p_message: text },
+    );
 
-    const oldReplies = target?.replies || [];
+    if (error) return;
 
-    const newReply = {
-      username: "Admin",
-      message: text,
-      created_at: new Date().toISOString(),
-    };
-
-    const updatedReplies = [...oldReplies, newReply];
-
-    await supabase
-      .from("comments")
-      .update({
-        replies: updatedReplies,
-      })
-      .eq("id", commentId);
+    const updated = Array.isArray(data) ? data[0] : data;
+    const updatedReplies = updated?.replies ?? [];
 
     setComments((prev) =>
       prev.map((item) =>
@@ -247,8 +236,10 @@ export default function AdminCommentsPage() {
                         </p>
 
                         {comment.image_url && (
-                          <img
+                          <ResponsiveImage
                             src={comment.image_url}
+                            alt={`Image jointe au commentaire de ${comment.name}`}
+                            loading="lazy"
                             className="rounded-2xl border border-white/10 w-full max-w-full sm:max-w-[260px] object-cover mb-4"
                           />
                         )}

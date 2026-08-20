@@ -1,8 +1,11 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ExternalLink, GitBranch, Code2 } from "lucide-react";
 import { Project } from "@/types";
+import { toStringList } from "@/lib/projectFields";
+import ResponsiveImage from "@/components/ui/ResponsiveImage";
 
 type PortfolioModalProps = {
   project: Project | null;
@@ -14,13 +17,29 @@ export default function PortfolioModal({
   onClose,
 }: PortfolioModalProps) {
   const isOpen = !!project;
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
-  const tech = project
-    ? (project.technologies || "")
-        .split(",")
-        .map((t) => t.trim())
-        .filter((t) => t !== "")
-    : [];
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", handleKeyDown);
+    closeButtonRef.current?.focus();
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, [isOpen, onClose]);
+
+  const tech = project ? toStringList(project.technologies) : [];
 
   const galleryImages =
     project?.image_urls &&
@@ -48,12 +67,15 @@ export default function PortfolioModal({
             exit={{ opacity: 0, y: 20, scale: 0.96 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="portfolio-dialog-title"
             className="w-full max-w-[620px] max-h-[92vh] overflow-y-auto custom-scroll rounded-[28px] bg-[#0d0e11]/95 border border-white/10 backdrop-blur-2xl shadow-[0_30px_90px_rgba(0,0,0,0.6)]"
           >
             {/* IMAGE */}
             <div className="relative w-full h-[220px] sm:h-[280px] rounded-t-[28px] overflow-hidden bg-white/[0.03]">
               {galleryImages.length > 0 ? (
-                <img
+                <ResponsiveImage
                   src={galleryImages[0]}
                   alt={project.title}
                   className="w-full h-full object-cover"
@@ -63,6 +85,7 @@ export default function PortfolioModal({
               )}
 
               <button
+                ref={closeButtonRef}
                 onClick={onClose}
                 className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/60 border border-white/15 backdrop-blur-xl flex items-center justify-center text-white hover:bg-black/80 transition"
                 aria-label="Fermer"
@@ -74,6 +97,7 @@ export default function PortfolioModal({
             {/* CONTENT */}
             <div className="p-5 sm:p-7">
               <h2
+                id="portfolio-dialog-title"
                 className="text-2xl sm:text-[28px] font-bold mb-4"
                 style={{ fontFamily: "'Syne', sans-serif" }}
               >

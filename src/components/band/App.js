@@ -29,9 +29,6 @@ const TEXTURE_PATH = "/assets/bandd.png";
 // not the metal clip/clamp.
 const CARD_BRIGHTNESS = 0.75;
 
-useGLTF.preload(GLTF_PATH);
-useTexture.preload(TEXTURE_PATH);
-
 export default function App() {
   const [isMobile, setIsMobile] = useState(false);
 

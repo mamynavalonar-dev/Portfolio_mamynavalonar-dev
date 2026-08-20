@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
+import { motion, useReducedMotion } from "framer-motion";
 import { ArrowDown, Circle } from "lucide-react";
-import App from "@/components/band/App";
 import TextType from "@/components/band/TextType";
 import ShapeGrid from "@/components/ShapeGrid";
+
+const BandApp = dynamic(() => import("@/components/band/App"), {
+  ssr: false,
+});
 
 const skills = ["Typescript", "React.js", "Tailwind"];
 
@@ -15,6 +19,8 @@ type HeroProps = {
 
 export default function Hero({ showApp }: HeroProps) {
   const [startAnim, setStartAnim] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     const heroPlayed = sessionStorage.getItem("heroPlayed");
@@ -36,6 +42,17 @@ export default function Hero({ showApp }: HeroProps) {
       if (appTimer) clearTimeout(appTimer);
     };
   }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 768px)");
+    const update = () => setIsDesktop(media.matches);
+
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  const shouldRender3d = showApp && isDesktop && !reducedMotion;
 
   const scrollToPortfolio = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
@@ -59,6 +76,7 @@ export default function Hero({ showApp }: HeroProps) {
           borderColor="#2a2a2a"
           hoverFillColor="rgba(255,255,255,0.06)"
           hoverTrailAmount={6}
+          paused={Boolean(reducedMotion)}
         />
       </div>
 
@@ -68,9 +86,9 @@ export default function Hero({ showApp }: HeroProps) {
       {/* APP LAYER */}
       <div
         className="absolute inset-0 z-40"
-        style={{ pointerEvents: showApp ? "auto" : "none" }}
+        style={{ pointerEvents: shouldRender3d ? "auto" : "none" }}
       >
-        {showApp && <App />}
+        {shouldRender3d && <BandApp />}
       </div>
 
       {/* TEXT */}

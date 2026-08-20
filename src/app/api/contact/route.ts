@@ -1,11 +1,13 @@
 import { createHmac } from "node:crypto";
-import { createClient } from "@supabase/supabase-js";
+import { createSupabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  isValidEmail,
+  normalizeContactString,
+} from "@/lib/contactValidation";
 
 export const runtime = "nodejs";
 
 const MAX_BODY_BYTES = 20_000;
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
-const RATE_LIMIT_MAX = 3;
 
 type ContactPayload = {
   name?: unknown;
@@ -26,14 +28,6 @@ function json(
   });
 }
 
-function normalizeString(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function isValidEmail(email: string) {
-  return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);
-}
-
 export async function POST(request: Request) {
   const contentLength = Number(request.headers.get("content-length") || "0");
 
@@ -50,7 +44,25 @@ export async function POST(request: Request) {
   let payload: ContactPayload;
 
   try {
-    payload = (await request.json()) as ContactPayload;
+    const rawBody = await request.text();
+
+    if (new TextEncoder().encode(rawBody).byteLength > MAX_BODY_BYTES) {
+      return json(
+        {
+          ok: false,
+          message: "Requête trop volumineuse.",
+        },
+        413,
+      );
+    }
+
+    const parsed = JSON.parse(rawBody) as unknown;
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new SyntaxError("Invalid JSON object");
+    }
+
+    payload = parsed as ContactPayload;
   } catch {
     return json(
       {
@@ -61,10 +73,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const name = normalizeString(payload.name);
-  const email = normalizeString(payload.email).toLowerCase();
-  const message = normalizeString(payload.message);
-  const website = normalizeString(payload.website);
+  const name = normalizeContactString(payload.name);
+  const email = normalizeContactString(payload.email).toLowerCase();
+  const message = normalizeContactString(payload.message);
+  const website = normalizeContactString(payload.website);
 
   // Honeypot : on répond comme si tout s'était bien passé,
   // sans écrire en base.
@@ -105,19 +117,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const supabaseUrl =
-    process.env.SUPABASE_URL ??
-    process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-  // Préférer la nouvelle Secret key sb_secret_...
-  // Fallback temporaire pour les anciens projets Supabase.
-  const supabaseSecret =
+  const serverSecret =
     process.env.SUPABASE_SECRET_KEY ??
     process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const rateLimitSecret =
+    process.env.CONTACT_RATE_LIMIT_SECRET ?? serverSecret;
 
-  if (!supabaseUrl || !supabaseSecret) {
+  if (!serverSecret || !rateLimitSecret) {
     console.error(
-      "Contact API: variables SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL ou SUPABASE_SECRET_KEY manquantes.",
+      "Contact API: variables Supabase serveur manquantes.",
     );
 
     return json(
@@ -136,69 +144,46 @@ export async function POST(request: Request) {
     "unknown";
 
   // HMAC : l'IP brute n'est jamais enregistrée dans la base.
-  const ipHash = createHmac("sha256", supabaseSecret)
+  const ipHash = createHmac("sha256", rateLimitSecret)
     .update(ip)
     .digest("hex");
 
-  const supabaseAdmin = createClient(
-    supabaseUrl,
-    supabaseSecret,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-        detectSessionInUrl: false,
-      },
-    },
-  );
+  let supabaseAdmin;
 
-  const since = new Date(
-    Date.now() - RATE_LIMIT_WINDOW_MS,
-  ).toISOString();
-
-  const { count, error: rateError } = await supabaseAdmin
-    .from("contact_messages")
-    .select("id", {
-      count: "exact",
-      head: true,
-    })
-    .eq("ip_hash", ipHash)
-    .gte("created_at", since);
-
-  if (rateError) {
-    console.error("Contact API rate-limit error:", rateError.message);
-
+  try {
+    supabaseAdmin = createSupabaseAdmin();
+  } catch (error) {
+    console.error("Contact API configuration error:", error);
     return json(
       {
         ok: false,
-        message: "Le service de contact est momentanément indisponible.",
+        message: "Le service de contact n'est pas configuré.",
       },
       503,
     );
   }
 
-  if ((count ?? 0) >= RATE_LIMIT_MAX) {
-    return json(
-      {
-        ok: false,
-        message:
-          "Trop de messages envoyés récemment. Réessayez dans quelques minutes.",
-      },
-      429,
-    );
-  }
-
-  const { error } = await supabaseAdmin
-    .from("contact_messages")
-    .insert({
-      name,
-      email,
-      message,
-      ip_hash: ipHash,
-      status: "new",
-    });
+  // La fonction SQL verrouille le hash puis compte et insère dans une même
+  // transaction : deux requêtes simultanées ne contournent plus la limite.
+  const { error } = await supabaseAdmin.rpc("submit_contact_message", {
+    p_email: email,
+    p_ip_hash: ipHash,
+    p_message: message,
+    p_name: name,
+  });
 
   if (error) {
+    if (error.message.includes("CONTACT_RATE_LIMIT")) {
+      return json(
+        {
+          ok: false,
+          message:
+            "Trop de messages envoyés récemment. Réessayez dans quelques minutes.",
+        },
+        429,
+      );
+    }
+
     console.error("Contact API insert error:", error.message);
 
     return json(

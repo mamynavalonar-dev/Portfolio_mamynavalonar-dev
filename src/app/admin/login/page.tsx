@@ -24,7 +24,8 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  const handleLogin = async () => {
+  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setErrorMsg("");
     setSuccessMsg("");
 
@@ -40,16 +41,26 @@ export default function LoginPage() {
       password,
     });
 
-    setLoading(false);
-
     if (error) {
+      setLoading(false);
       setErrorMsg("Email ou mot de passe invalide");
-    } else {
-      setSuccessMsg("Connexion réussie, redirection...");
-      setTimeout(() => {
-        router.push("/admin/dashboard");
-      }, 800);
+      return;
     }
+
+    const accessResponse = await fetch("/api/admin/session", {
+      cache: "no-store",
+    });
+
+    if (!accessResponse.ok) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      setErrorMsg("Ce compte ne possède pas le rôle administrateur");
+      return;
+    }
+
+    setSuccessMsg("Connexion réussie, redirection...");
+    router.replace("/admin/dashboard");
+    router.refresh();
   };
 
   return (
@@ -90,6 +101,7 @@ export default function LoginPage() {
             </div>
           )}
 
+          <form onSubmit={handleLogin}>
           {/* EMAIL */}
           <div className="mb-4">
             <label className="text-sm text-white/50 mb-2 block">
@@ -104,6 +116,9 @@ export default function LoginPage() {
 
               <input
                 type="email"
+                name="email"
+                autoComplete="email"
+                required
                 placeholder="entrez votre email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -126,6 +141,9 @@ export default function LoginPage() {
 
               <input
                 type={showPassword ? "text" : "password"}
+                name="password"
+                autoComplete="current-password"
+                required
                 placeholder="entrez votre mot de passe"
                 value={password}
                 onChange={(e) =>
@@ -152,7 +170,7 @@ export default function LoginPage() {
 
           {/* BUTTON */}
           <button
-            onClick={handleLogin}
+            type="submit"
             disabled={loading}
             className="w-full h-[56px] rounded-2xl bg-white text-black font-medium hover:scale-[1.01] active:scale-[0.99] transition flex items-center justify-center gap-2 disabled:opacity-60"
           >
@@ -168,6 +186,7 @@ export default function LoginPage() {
               "Se connecter"
             )}
           </button>
+          </form>
         </div>
       </div>
     </div>

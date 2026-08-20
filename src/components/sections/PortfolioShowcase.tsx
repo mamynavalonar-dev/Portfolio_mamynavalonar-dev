@@ -1,17 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 import usePortfolio from "@/hooks/usePortfolio";
 import PortfolioCard from "./PortfolioCard";
 import PortfolioModal from "./PortfolioModal";
 import { Project } from "@/types";
+import type { PublicPortfolioData } from "@/types";
+import ResponsiveImage from "@/components/ui/ResponsiveImage";
 
 const smoothEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
-export default function PortfolioShowcase() {
-  const { projects, certificates, techStacks, loading } = usePortfolio();
+export default function PortfolioShowcase({
+  initialPortfolio,
+}: {
+  initialPortfolio?: PublicPortfolioData;
+}) {
+  const { projects, certificates, techStacks, loading } = usePortfolio(initialPortfolio);
 
   const [activeTab, setActiveTab] = useState("projects");
 
@@ -24,6 +30,17 @@ export default function PortfolioShowcase() {
   const [activeProject, setActiveProject] = useState<Project | null>(null);
 
   const displayedProjects = showAllProjects ? projects : projects.slice(0, 3);
+
+  useEffect(() => {
+    if (!previewOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPreviewOpen(false);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [previewOpen]);
 
   return (
     <>
@@ -41,8 +58,13 @@ export default function PortfolioShowcase() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[999] bg-black/90 backdrop-blur-md flex items-center justify-center px-6"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Aperçu du certificat"
           >
             <button
+              type="button"
+              aria-label="Fermer l'aperçu"
               onClick={() => setPreviewOpen(false)}
               className="absolute top-6 right-6 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition"
             >
@@ -64,6 +86,7 @@ export default function PortfolioShowcase() {
               }}
               transition={{ duration: 0.35 }}
               src={previewImage}
+              alt="Aperçu du certificat"
               className="max-w-[88vw] max-h-[88vh] rounded-3xl object-contain"
             />
           </motion.div>
@@ -271,8 +294,11 @@ export default function PortfolioShowcase() {
                       className="group cursor-pointer rounded-[26px] border border-white/10 bg-white/5 p-4 backdrop-blur-xl"
                     >
                       <div className="rounded-2xl overflow-hidden border border-white/10 h-56">
-                        <img
+                        <ResponsiveImage
                           src={item.image_url}
+                          alt={`Certificat : ${item.title}`}
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                         />
                       </div>
@@ -317,7 +343,7 @@ export default function PortfolioShowcase() {
                           <div className="absolute w-[70px] h-[70px] rounded-full bg-white/20 blur-2xl opacity-0 group-hover:opacity-100 transition duration-500" />
 
                           {item.logo_url ? (
-                            <img
+                            <ResponsiveImage
                               src={item.logo_url}
                               alt={item.name}
                               className="relative z-10 w-[56px] h-[56px] object-contain"

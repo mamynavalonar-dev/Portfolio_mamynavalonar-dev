@@ -4,6 +4,8 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Upload, X } from "lucide-react";
 import { Project } from "@/types";
+import { normalizeProject, toStringList } from "@/lib/projectFields";
+import ResponsiveImage from "@/components/ui/ResponsiveImage";
 
 export default function AddProjectModal({
   isOpen,
@@ -103,8 +105,8 @@ export default function AddProjectModal({
             description: desc,
             live_url: live || null,
             github_url: github || null,
-            technologies: tech,
-            key_features: features,
+            technologies: toStringList(tech),
+            key_features: toStringList(features),
             image_url: uploadedUrls[0] || null,
             image_urls: uploadedUrls,
           },
@@ -118,7 +120,7 @@ export default function AddProjectModal({
         return;
       }
 
-      onAdd(data);
+      onAdd(normalizeProject(data));
 
       setTitle("");
       setDesc("");
@@ -138,7 +140,7 @@ export default function AddProjectModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[999] bg-black/70 backdrop-blur-md flex items-center justify-center px-3 sm:px-6 py-6">
+    <div className="fixed inset-0 z-[999] bg-black/70 backdrop-blur-md flex items-center justify-center px-3 sm:px-6 py-6" role="dialog" aria-modal="true" aria-labelledby="add-project-title">
       {toast && (
         <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-white text-black px-4 py-2 rounded-xl text-sm shadow-lg z-50">
           {toast}
@@ -149,7 +151,7 @@ export default function AddProjectModal({
         {/* HEADER */}
         <div className="px-4 sm:px-6 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
           <div>
-            <h2 className="text-base sm:text-lg font-semibold">
+            <h2 id="add-project-title" className="text-base sm:text-lg font-semibold">
               Ajouter un projet
             </h2>
 
@@ -159,6 +161,8 @@ export default function AddProjectModal({
           </div>
 
           <button
+            type="button"
+            aria-label="Fermer la fenêtre d'ajout"
             onClick={onClose}
             className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition"
           >
@@ -222,8 +226,9 @@ export default function AddProjectModal({
                   key={i}
                   className="relative rounded-2xl overflow-hidden border border-white/10"
                 >
-                  <img
+                  <ResponsiveImage
                     src={img}
+                    alt={`Aperçu de l'image ${i + 1}`}
                     className="w-full h-24 object-cover"
                   />
 

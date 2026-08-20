@@ -17,6 +17,7 @@ interface ShapeGridProps {
   hoverFillColor?: CanvasStrokeStyle;
   shape?: "square" | "hexagon" | "circle" | "triangle";
   hoverTrailAmount?: number;
+  paused?: boolean;
 }
 
 const ShapeGrid: React.FC<ShapeGridProps> = ({
@@ -27,6 +28,7 @@ const ShapeGrid: React.FC<ShapeGridProps> = ({
   hoverFillColor = "#222",
   shape = "square",
   hoverTrailAmount = 0,
+  paused = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
@@ -431,7 +433,11 @@ const ShapeGrid: React.FC<ShapeGridProps> = ({
 
     canvas.addEventListener("mousemove", handleMouseMove);
     canvas.addEventListener("mouseleave", handleMouseLeave);
-    requestRef.current = requestAnimationFrame(updateAnimation);
+    if (paused) {
+      drawGrid();
+    } else {
+      requestRef.current = requestAnimationFrame(updateAnimation);
+    }
 
     return () => {
       window.removeEventListener("resize", resizeCanvas);
@@ -447,6 +453,7 @@ const ShapeGrid: React.FC<ShapeGridProps> = ({
     squareSize,
     shape,
     hoverTrailAmount,
+    paused,
   ]);
 
   return (

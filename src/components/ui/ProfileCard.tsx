@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useCallback, useMemo } from "react";
+import ResponsiveImage from "@/components/ui/ResponsiveImage";
 
 const DEFAULT_INNER_GRADIENT =
   "linear-gradient(145deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 100%)";
@@ -69,7 +70,7 @@ interface TiltEngine {
 }
 
 const ProfileCardComponent: React.FC<ProfileCardProps> = ({
-  avatarUrl = "/assets/PP.png",
+  avatarUrl = "/assets/PP.webp",
   innerGradient,
   behindGlowEnabled = true,
   behindGlowColor,
@@ -540,7 +541,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
                 backfaceVisibility: "hidden",
               }}
             >
-              <img
+              <ResponsiveImage
                 className="w-full absolute left-1/2 bottom-[-1px] will-change-transform transition-transform duration-[120ms] ease-out object-cover"
                 src={avatarUrl}
                 alt={`Photo de ${name}`}
@@ -573,7 +574,9 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
                       className="rounded-full overflow-hidden border border-white/15 flex-shrink-0"
                       style={{ width: "38px", height: "38px" }}
                     >
-                      <img
+                      <ResponsiveImage
+                        width={76}
+                        height={76}
                         className="w-full h-full object-cover rounded-full"
                         src={miniAvatarUrl || avatarUrl}
                         alt={`Mini photo de ${name}`}

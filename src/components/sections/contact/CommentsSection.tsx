@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence, Variants } from 'framer-motion'
 import { Upload, Heart, Pin } from 'lucide-react'
 import useComments from '@/hooks/useComments'
+import ResponsiveImage from '@/components/ui/ResponsiveImage'
 
 const smoothEase: [number, number, number, number] = [0.22, 1, 0.36, 1]
 
@@ -32,7 +33,7 @@ const itemVariants: Variants = {
 }
 
 export default function CommentsSection() {
-  const { comments, loading, addComment, likeComment } =
+  const { comments, loading, error, addComment, likeComment } =
     useComments()
 
   const [name, setName] = useState('')
@@ -50,15 +51,19 @@ export default function CommentsSection() {
     setPreview(URL.createObjectURL(file))
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
     if (!name.trim() || !comment.trim()) return
 
-    await addComment({
+    const created = await addComment({
       name,
       comment,
       image,
     })
 
+    if (!created) return
+
+    if (preview) URL.revokeObjectURL(preview)
     setName('')
     setComment('')
     setImage(null)
@@ -88,14 +93,23 @@ export default function CommentsSection() {
       </div>
 
       {/* FORM */}
-      <motion.div
+      <motion.form
         variants={containerVariants}
         initial="hidden"
         whileInView="show"
         viewport={{ once: false }}
+        onSubmit={handleSubmit}
         className="space-y-3 md:space-y-4 mb-5 md:mb-6"
       >
+        <label htmlFor="comment-name" className="sr-only">
+          Votre nom
+        </label>
         <motion.input
+          id="comment-name"
+          name="name"
+          required
+          minLength={2}
+          maxLength={80}
           variants={itemVariants}
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -103,7 +117,15 @@ export default function CommentsSection() {
           className="w-full rounded-2xl border border-white/15 bg-black/20 px-4 py-3 md:py-4 outline-none focus:border-white"
         />
 
+        <label htmlFor="comment-text" className="sr-only">
+          Votre commentaire
+        </label>
         <motion.textarea
+          id="comment-text"
+          name="comment"
+          required
+          minLength={3}
+          maxLength={1000}
           variants={itemVariants}
           rows={4}
           value={comment}
@@ -125,10 +147,19 @@ export default function CommentsSection() {
           <input
             hidden
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp"
             onChange={handleImage}
           />
         </motion.label>
+
+        {error && (
+          <p
+            role="alert"
+            className="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200"
+          >
+            {error}
+          </p>
+        )}
 
         <AnimatePresence>
           {preview && (
@@ -144,16 +175,16 @@ export default function CommentsSection() {
         </AnimatePresence>
 
         <motion.button
+          type="submit"
           variants={itemVariants}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          onClick={handleSubmit}
           disabled={loading}
           className="w-full rounded-2xl py-3 md:py-4 bg-white/10 border border-white/10 transition-all"
         >
           {loading ? 'Publication...' : 'Publier le commentaire'}
         </motion.button>
-      </motion.div>
+      </motion.form>
 
       {/* COMMENTS LIST */}
       <motion.div
@@ -224,7 +255,7 @@ export default function CommentsSection() {
                     </p>
 
                     {item.image_url && (
-                      <img
+                      <ResponsiveImage
                         src={item.image_url}
                         alt="Commentaire"
                         className="mt-3 rounded-xl w-full max-h-48 md:max-h-56 object-cover border border-white/10"
@@ -233,15 +264,30 @@ export default function CommentsSection() {
                   </div>
 
                   <button
-                    onClick={() =>
-                      likeComment(item.id, item.likes)
-                    }
+                    type="button"
+                    aria-label={`Aimer le commentaire de ${item.name}`}
+                    onClick={() => likeComment(item.id)}
                     className="flex items-center gap-1 text-[11px] text-white/40 hover:text-white transition-colors"
                   >
                     <Heart size={13} />
                     {item.likes || 0}
                   </button>
                 </div>
+
+                {item.replies?.length > 0 && (
+                  <div className="ml-12 mt-3 space-y-2 border-l border-white/10 pl-4">
+                    {item.replies.map((reply, replyIndex) => (
+                      <div key={`${item.id}-${reply.created_at}-${replyIndex}`}>
+                        <p className="text-xs font-medium text-white/75">
+                          {reply.username}
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-white/50">
+                          {reply.message}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </motion.div>
             ))}
           </AnimatePresence>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Sidebar from "@/app/admin/Sidebar";
+import ResponsiveImage from "@/components/ui/ResponsiveImage";
 import { supabase } from "@/lib/supabase";
 import { Plus, Trash2, Pencil, X, Upload } from "lucide-react";
 import Swal from "sweetalert2";
@@ -228,8 +229,10 @@ export default function TechStackPage() {
                   <div className="flex justify-between items-start mb-4">
                     <div className="w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
                       {item.logo_url ? (
-                        <img
+                        <ResponsiveImage
                           src={item.logo_url}
+                          alt={`Logo de ${item.name}`}
+                          loading="lazy"
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -288,8 +291,9 @@ export default function TechStackPage() {
             {/* IMAGE */}
             <label className="border border-dashed border-white/10 rounded-2xl bg-[#0f0f0f] h-40 sm:h-44 flex flex-col items-center justify-center cursor-pointer overflow-hidden mb-4">
               {preview ? (
-                <img
+                <ResponsiveImage
                   src={preview}
+                  alt="Aperçu du logo à importer"
                   className="w-full h-full object-cover"
                 />
               ) : (

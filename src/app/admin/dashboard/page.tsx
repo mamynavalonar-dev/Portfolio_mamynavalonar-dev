@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Sidebar from "@/app/admin/Sidebar";
 import { supabase } from "@/lib/supabase";
 import { PortfolioComment } from "@/types";
@@ -15,10 +14,6 @@ import {
 } from "lucide-react";
 
 export default function DashboardPage() {
-  const router = useRouter();
-
-  const [authorized, setAuthorized] = useState(false);
-
   const [stats, setStats] = useState({
     projects: 0,
     certificates: 0,
@@ -30,22 +25,12 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkAuth();
+    const timer = window.setTimeout(() => {
+      void fetchDashboard();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, []);
-
-  async function checkAuth() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
-      router.replace("/admin/login");
-      return;
-    }
-
-    setAuthorized(true);
-    fetchDashboard();
-  };
 
   async function fetchDashboard() {
     try {
@@ -131,14 +116,6 @@ export default function DashboardPage() {
       value: stats.pinned,
     },
   ];
-
-  if (!authorized) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-white">
-        Vérification de la session...
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white overflow-hidden">

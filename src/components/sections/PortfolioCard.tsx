@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import ResponsiveImage from "@/components/ui/ResponsiveImage";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 
 type Props = {
@@ -43,8 +44,11 @@ export default function PortfolioCard({
     >
       <div className="w-full h-36 rounded-2xl overflow-hidden border border-white/10 bg-white/[0.03] mb-3">
         {image ? (
-          <img
+          <ResponsiveImage
             src={image}
+            alt={`Aperçu du projet ${title}`}
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
           />
         ) : (

@@ -9,8 +9,8 @@ export interface Project {
   id: string;
   title: string;
   description: string;
-  technologies: string;
-  key_features: string;
+  technologies: string[];
+  key_features: string[];
   image_url: string | null;
   image_urls: string[] | null;
   live_url: string | null;
@@ -23,6 +23,12 @@ export interface Certificate {
   title: string;
   image_url: string;
   created_at: string;
+}
+
+export interface PublicPortfolioData {
+  projects: Project[];
+  certificates: Certificate[];
+  techStacks: TechStack[];
 }
 
 export interface CommentReply {

@@ -6,11 +6,14 @@ import {
   Folder,
   Award,
   MessageSquare,
+  Inbox,
   Layers,
   Menu,
   X,
+  LogOut,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 
@@ -36,6 +39,11 @@ const menus = [
     path: "/admin/comments",
   },
   {
+    name: "Messages",
+    icon: Inbox,
+    path: "/admin/messages",
+  },
+  {
     name: "Technologies",
     icon: Layers,
     path: "/admin/tech",
@@ -46,10 +54,12 @@ function SidebarContent({
   pathname,
   hideTitle = false,
   onNavigate,
+  onLogout,
 }: {
   pathname: string;
   hideTitle?: boolean;
   onNavigate?: () => void;
+  onLogout: () => void;
 }) {
   return (
     <>
@@ -63,7 +73,8 @@ function SidebarContent({
         <nav className="space-y-2">
           {menus.map((menu) => {
             const Icon = menu.icon;
-            const active = pathname === menu.path;
+            const active =
+              pathname === menu.path || pathname.startsWith(`${menu.path}/`);
 
             return (
               <Link
@@ -120,13 +131,24 @@ function SidebarContent({
         </nav>
       </div>
 
-      <div className="text-xs text-white/35 tracking-wide">© 2026 Admin</div>
+      <div className="space-y-4">
+        <button
+          type="button"
+          onClick={onLogout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-white/60 hover:text-white hover:bg-white/[0.06] transition"
+        >
+          <LogOut size={17} />
+          Se déconnecter
+        </button>
+        <div className="text-xs text-white/35 tracking-wide">© 2026 Admin</div>
+      </div>
     </>
   );
 }
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -144,11 +166,18 @@ export default function Sidebar() {
     };
   }, []);
 
+  const handleLogout = async () => {
+    const { supabase } = await import("@/lib/supabase");
+    await supabase.auth.signOut();
+    router.replace("/admin/login");
+    router.refresh();
+  };
+
   return (
     <>
       {!isMobile && (
         <aside className="fixed left-0 top-0 h-screen w-[250px] bg-black border-r border-white/10 p-6 flex flex-col justify-between overflow-hidden z-50">
-          <SidebarContent pathname={pathname} />
+          <SidebarContent pathname={pathname} onLogout={handleLogout} />
         </aside>
       )}
 
@@ -211,6 +240,7 @@ export default function Sidebar() {
                       pathname={pathname}
                       hideTitle
                       onNavigate={() => setOpen(false)}
+                      onLogout={handleLogout}
                     />
                   </div>
                 </motion.aside>

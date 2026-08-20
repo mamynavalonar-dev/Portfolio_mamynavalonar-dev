@@ -173,6 +173,9 @@ export default function ContactForm() {
           viewport={{ once: false }}
           transition={{ delay: 0.1 }}
         >
+          <label htmlFor="contact-name" className="sr-only">
+            Votre nom
+          </label>
           <div className="relative">
             <User
               className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40"
@@ -180,6 +183,7 @@ export default function ContactForm() {
             />
 
             <input
+              id="contact-name"
               name="name"
               type="text"
               value={name}
@@ -203,6 +207,9 @@ export default function ContactForm() {
           viewport={{ once: false }}
           transition={{ delay: 0.16 }}
         >
+          <label htmlFor="contact-email" className="sr-only">
+            Votre adresse e-mail
+          </label>
           <div className="relative">
             <Mail
               className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40"
@@ -210,6 +217,7 @@ export default function ContactForm() {
             />
 
             <input
+              id="contact-email"
               name="email"
               type="email"
               value={email}
@@ -232,6 +240,9 @@ export default function ContactForm() {
           viewport={{ once: false }}
           transition={{ delay: 0.22 }}
         >
+          <label htmlFor="contact-message" className="sr-only">
+            Votre message
+          </label>
           <div className="relative">
             <MessageSquare
               className="absolute left-4 top-5 text-white/40"
@@ -239,6 +250,7 @@ export default function ContactForm() {
             />
 
             <textarea
+              id="contact-message"
               name="message"
               rows={5}
               value={message}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { motion, Variants } from "framer-motion";
+import { motion, useReducedMotion, Variants } from "framer-motion";
 import { Code, Award, Globe, FileText, ArrowUpRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import ProfileCard from "@/components/ui/ProfileCard";
@@ -59,11 +59,18 @@ const pop: Variants = {
 
 /* ================== COMPONENT ================== */
 
-export default function About() {
-  const [isMobile, setIsMobile] = useState<boolean | null>(null);
+export default function About({
+  initialProjectCount = 0,
+  initialCertificateCount = 0,
+}: {
+  initialProjectCount?: number;
+  initialCertificateCount?: number;
+}) {
+  const [isMobile, setIsMobile] = useState(false);
+  const reducedMotion = useReducedMotion();
 
-  const [projectCount, setProjectCount] = useState(0);
-  const [certificateCount, setCertificateCount] = useState(0);
+  const [projectCount, setProjectCount] = useState(initialProjectCount);
+  const [certificateCount, setCertificateCount] = useState(initialCertificateCount);
 
     const fetchStats = useCallback(async () => {
     try {
@@ -115,8 +122,6 @@ useEffect(() => {
     }
   };
 
-  if (isMobile === null) return null;
-
   const stats = [
     {
       icon: <Code size={16} />,
@@ -156,7 +161,7 @@ useEffect(() => {
           pointerEvents: isMobile ? "none" : "auto",
         }}
       >
-        <GridScan
+        {!reducedMotion && <GridScan
           sensitivity={0.5}
           lineThickness={1}
           linesColor="#23262b"
@@ -168,7 +173,7 @@ useEffect(() => {
           scanDuration={3.5}
           scanDelay={2.5}
           lineJitter={0.15}
-        />
+        />}
       </div>
 
       <div style={{ width: "100%", position: "relative", zIndex: 1 }}>
@@ -369,8 +374,8 @@ useEffect(() => {
               }}
             >
               <ProfileCard
-                avatarUrl="/assets/PP.png"
-                miniAvatarUrl="/assets/PP.png"
+                avatarUrl="/assets/PP.webp"
+                miniAvatarUrl="/assets/PP.webp"
                 name="RAKOTONIAINA Mamy Navalona Antonio"
                 title="Développeur Full Stack"
                 handle="mamynavalonar-dev"

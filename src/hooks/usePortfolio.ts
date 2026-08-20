@@ -7,15 +7,17 @@ import {
   fetchProjects,
   fetchTechStacks,
 } from '@/lib/portfolioService'
+import { normalizeProject } from '@/lib/projectFields'
+import type { PublicPortfolioData } from '@/types'
 
-export default function usePortfolio() {
-  const [projects, setProjects] = useState<Project[]>([])
+export default function usePortfolio(initialPortfolio?: PublicPortfolioData) {
+  const [projects, setProjects] = useState<Project[]>(initialPortfolio?.projects ?? [])
   const [certificates, setCertificates] =
-    useState<Certificate[]>([])
+    useState<Certificate[]>(initialPortfolio?.certificates ?? [])
   const [techStacks, setTechStacks] =
-    useState<TechStack[]>([])
+    useState<TechStack[]>(initialPortfolio?.techStacks ?? [])
 
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!initialPortfolio)
 
     const loadPortfolio = useCallback(async () => {
     const cachedProjects =
@@ -34,7 +36,8 @@ export default function usePortfolio() {
       )
 
     if (cachedProjects) {
-      setProjects(JSON.parse(cachedProjects))
+      const parsedProjects = JSON.parse(cachedProjects) as Record<string, unknown>[]
+      setProjects(parsedProjects.map((project) => normalizeProject(project)))
     }
 
     if (cachedCertificates) {
