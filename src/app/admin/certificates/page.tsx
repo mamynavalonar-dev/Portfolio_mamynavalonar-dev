@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Trash2, Pencil, X, Upload } from "lucide-react";
 import Sidebar from "@/app/admin/Sidebar";
+import ResponsiveImage from "@/components/ui/ResponsiveImage";
 import { supabase } from "@/lib/supabase";
 import Swal from "sweetalert2";
 import { Certificate } from "@/types";
@@ -214,8 +215,10 @@ export default function CertificatesPage() {
                   {/* IMAGE */}
                   <div className="w-full h-[150px] rounded-xl overflow-hidden bg-white/[0.03] mb-4">
                     {item.image_url ? (
-                      <img
+                      <ResponsiveImage
                         src={item.image_url}
+                        alt={`Certificat : ${item.title}`}
+                        loading="lazy"
                         className="w-full h-full object-cover hover:scale-105 transition duration-500"
                       />
                     ) : (
@@ -283,7 +286,7 @@ export default function CertificatesPage() {
             {/* IMAGE */}
             <label className="border border-dashed border-white/10 rounded-2xl bg-[#0f0f0f] h-44 sm:h-52 flex flex-col items-center justify-center cursor-pointer overflow-hidden mb-4">
               {preview ? (
-                <img src={preview} className="w-full h-full object-cover" />
+                <ResponsiveImage src={preview} alt="Aperçu du certificat à importer" className="w-full h-full object-cover" />
               ) : (
                 <>
                   <Upload size={24} className="text-white/50 mb-2" />

@@ -16,10 +16,9 @@
   --accent: #d4d4d4;
 
   /* Glassmorphism */
-  --glass-bg: rgba(20, 20, 20, 0.55);
+  --glass-bg: rgba(20, 20, 20, 0.82);
   --glass-bg-scrolled: rgba(13, 13, 13, 0.85);
   --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-blur: 16px;
 
   /* Gradients */
   --gradient-primary: linear-gradient(135deg, #f0f0f0 0%, #888888 100%);
@@ -46,7 +45,7 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
   scrollbar-width: none; /* Firefox */
 }
 
@@ -57,6 +56,13 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
   -ms-overflow-style: none; /* IE + Edge */
+}
+
+#home,
+#about,
+#portfolio,
+#contact {
+  scroll-margin-top: 76px;
 }
 
 /* Sélection de texte : autorisée uniquement là où c'est utile (contenu textuel),
@@ -109,6 +115,16 @@ textarea {
   background: rgba(255, 255, 255, 0.2);
 }
 
+@keyframes cursor-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
 /* ============================================================
    UTILITAIRES DESIGN — Glassmorphism / Gradient / Glow
    ============================================================ */
@@ -117,8 +133,6 @@ textarea {
   /* Panneau verre, base de la navbar / cartes / modales */
   .glass-panel {
     background-color: var(--glass-bg);
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
     border: 1px solid var(--glass-border);
   }
 
@@ -179,5 +193,15 @@ textarea {
       var(--shadow-glow),
       0 0 40px rgba(255, 255, 255, 0.18);
     transform: translateY(-2px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

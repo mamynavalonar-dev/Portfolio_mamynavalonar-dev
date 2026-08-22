@@ -1,17 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 import usePortfolio from "@/hooks/usePortfolio";
 import PortfolioCard from "./PortfolioCard";
 import PortfolioModal from "./PortfolioModal";
 import { Project } from "@/types";
+import type { PublicPortfolioData } from "@/types";
+import ResponsiveImage from "@/components/ui/ResponsiveImage";
 
 const smoothEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
-export default function PortfolioShowcase() {
-  const { projects, certificates, techStacks, loading } = usePortfolio();
+export default function PortfolioShowcase({
+  initialPortfolio,
+}: {
+  initialPortfolio?: PublicPortfolioData;
+}) {
+  const { projects, certificates, techStacks, loading } = usePortfolio(initialPortfolio);
 
   const [activeTab, setActiveTab] = useState("projects");
 
@@ -24,6 +30,17 @@ export default function PortfolioShowcase() {
   const [activeProject, setActiveProject] = useState<Project | null>(null);
 
   const displayedProjects = showAllProjects ? projects : projects.slice(0, 3);
+
+  useEffect(() => {
+    if (!previewOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPreviewOpen(false);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [previewOpen]);
 
   return (
     <>
@@ -41,8 +58,13 @@ export default function PortfolioShowcase() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[999] bg-black/90 backdrop-blur-md flex items-center justify-center px-6"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Aperçu du certificat"
           >
             <button
+              type="button"
+              aria-label="Fermer l'aperçu"
               onClick={() => setPreviewOpen(false)}
               className="absolute top-6 right-6 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition"
             >
@@ -62,8 +84,9 @@ export default function PortfolioShowcase() {
                 scale: 0.92,
                 opacity: 0,
               }}
-              transition={{ duration: 0.35 }}
+              transition={{ duration: 0.18 }}
               src={previewImage}
+              alt="Aperçu du certificat"
               className="max-w-[88vw] max-h-[88vh] rounded-3xl object-contain"
             />
           </motion.div>
@@ -78,7 +101,7 @@ export default function PortfolioShowcase() {
         <motion.div
           initial={{ opacity: 0, y: 45 }}
           whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9 }}
+          transition={{ duration: 0.28 }}
           className="text-center mb-8"
         >
           <h1 className="text-3xl md:text-5xl font-bold mb-3">
@@ -93,7 +116,7 @@ export default function PortfolioShowcase() {
 
         {/* TAB */}
         <div className="flex justify-center mb-10">
-          <div className="w-full max-w-3xl rounded-full border border-white/10 bg-white/5 p-2 flex gap-2 backdrop-blur-xl">
+          <div className="w-full max-w-3xl rounded-full border border-white/10 bg-white/5 p-2 flex gap-2">
             {["projects", "certificates", "techstack"].map((tab) => (
               <button
                 key={tab}
@@ -126,7 +149,7 @@ export default function PortfolioShowcase() {
             initial={{ opacity: 0, y: 25 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.45 }}
+            transition={{ duration: 0.2 }}
           >
             {/* PROJECTS */}
             {activeTab === "projects" && (
@@ -135,7 +158,7 @@ export default function PortfolioShowcase() {
                   layout
                   transition={{
                     layout: {
-                      duration: 0.75,
+                      duration: 0.25,
                       ease: smoothEase,
                     },
                   }}
@@ -163,7 +186,7 @@ export default function PortfolioShowcase() {
                             scale: 0.95,
                           }}
                           transition={{
-                            duration: 0.55,
+                            duration: 0.22,
                             delay: i * 0.04,
                             ease: smoothEase,
                           }}
@@ -187,7 +210,7 @@ export default function PortfolioShowcase() {
                   <motion.div
                     layout
                     transition={{
-                      duration: 0.6,
+                      duration: 0.22,
                       ease: smoothEase,
                     }}
                     className="flex justify-center"
@@ -201,7 +224,7 @@ export default function PortfolioShowcase() {
                         scale: 0.97,
                       }}
                       onClick={() => setShowAllProjects(!showAllProjects)}
-                      className="px-6 py-3 rounded-full border border-white/10 bg-white/[0.05] backdrop-blur-xl text-sm text-white/75 hover:text-white transition flex items-center gap-2"
+                      className="px-6 py-3 rounded-full border border-white/10 bg-white/[0.05] text-sm text-white/75 hover:text-white transition flex items-center gap-2"
                     >
                       <AnimatePresence mode="wait">
                         <motion.div
@@ -260,7 +283,7 @@ export default function PortfolioShowcase() {
                         scale: 1,
                       }}
                       transition={{
-                        duration: 0.5,
+                        duration: 0.22,
                         delay: i * 0.04,
                       }}
                       whileHover={{ y: -4 }}
@@ -268,11 +291,14 @@ export default function PortfolioShowcase() {
                         setPreviewImage(item.image_url);
                         setPreviewOpen(true);
                       }}
-                      className="group cursor-pointer rounded-[26px] border border-white/10 bg-white/5 p-4 backdrop-blur-xl"
+                      className="group cursor-pointer rounded-[26px] border border-white/10 bg-white/5 p-4"
                     >
                       <div className="rounded-2xl overflow-hidden border border-white/10 h-56">
-                        <img
+                        <ResponsiveImage
                           src={item.image_url}
+                          alt={`Certificat : ${item.title}`}
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                         />
                       </div>
@@ -304,20 +330,20 @@ export default function PortfolioShowcase() {
                           y: 0,
                         }}
                         transition={{
-                          duration: 0.45,
+                          duration: 0.2,
                           delay: index * 0.04,
                         }}
                         whileHover={{
                           y: -5,
                           scale: 1.04,
                         }}
-                        className="group rounded-[24px] border border-white/10 bg-white/[0.04] backdrop-blur-xl flex flex-col items-center justify-center gap-3 h-[125px] w-[125px] mx-auto"
+                        className="group rounded-[24px] border border-white/10 bg-white/[0.04] flex flex-col items-center justify-center gap-3 h-[125px] w-[125px] mx-auto"
                       >
                         <div className="relative flex items-center justify-center">
                           <div className="absolute w-[70px] h-[70px] rounded-full bg-white/20 blur-2xl opacity-0 group-hover:opacity-100 transition duration-500" />
 
                           {item.logo_url ? (
-                            <img
+                            <ResponsiveImage
                               src={item.logo_url}
                               alt={item.name}
                               className="relative z-10 w-[56px] h-[56px] object-contain"

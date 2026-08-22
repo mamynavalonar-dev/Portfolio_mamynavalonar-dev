@@ -1,125 +1,85 @@
-'use client'
+"use client";
 
-import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
-import { PortfolioComment } from '@/types'
+import { useCallback, useEffect, useState } from "react";
+import type { PortfolioComment } from "@/types";
 import {
-  fetchCommentsService,
   createCommentService,
+  fetchCommentsService,
   likeCommentService,
-  uploadCommentImageService,
-} from '@/lib/commentService'
+} from "@/lib/commentService";
 
 export default function useComments() {
-  const [comments, setComments] = useState<PortfolioComment[]>([])
-  const [loading, setLoading] = useState(false)
+  const [comments, setComments] = useState<PortfolioComment[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-    const fetchInitialComments = useCallback(async () => {
+  const fetchInitialComments = useCallback(async () => {
     try {
-      const data = await fetchCommentsService()
-      setComments(data)
-    } catch (err) {
-      console.log(err)
+      setComments(await fetchCommentsService());
+    } catch (fetchError) {
+      setError(
+        fetchError instanceof Error
+          ? fetchError.message
+          : "Impossible de charger les commentaires.",
+      );
     }
-  
   }, []);
 
-useEffect(() => {
-    const timer = setTimeout(() => {
-      void fetchInitialComments()
-    }, 0)
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchInitialComments();
+    }, 0);
 
-    const channel = supabase
-      .channel('comments-live')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'comments',
-        },
-        async () => {
-          const data = await fetchCommentsService()
-          setComments(data)
-        }
-      )
-      .subscribe()
-
-    return () => {
-      clearTimeout(timer)
-      supabase.removeChannel(channel)
-    }
-  }, [fetchInitialComments])
-
+    return () => window.clearTimeout(timer);
+  }, [fetchInitialComments]);
 
   const addComment = async ({
     name,
     comment,
     image,
   }: {
-    name: string
-    comment: string
-    image: File | null
+    name: string;
+    comment: string;
+    image: File | null;
   }) => {
-    if (!name.trim()) return
-    if (!comment.trim()) return
-
-    setLoading(true)
+    setLoading(true);
+    setError("");
 
     try {
-      let imageUrl: string | null = null
-
-      if (image) {
-        imageUrl = await uploadCommentImageService(image)
-      }
-
-      const newComment = await createCommentService({
-        name,
-        comment,
-        imageUrl,
-      })
-
-      // instant UI update (tanpa nunggu realtime)
-      setComments((prev) => [newComment, ...prev])
-    } catch (err) {
-      console.log(err)
+      const newComment = await createCommentService({ name, comment, image });
+      setComments((current) => [newComment, ...current]);
+      return true;
+    } catch (createError) {
+      setError(
+        createError instanceof Error
+          ? createError.message
+          : "Impossible de publier le commentaire.",
+      );
+      return false;
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const likeComment = async (
-    id: number,
-    currentLikes: number
-  ) => {
-    const liked = localStorage.getItem(`liked-${id}`)
+  const likeComment = async (id: number) => {
+    if (localStorage.getItem(`liked-${id}`)) return;
 
-    if (liked) return
+    setError("");
 
     try {
-      const newLikes = await likeCommentService(
-        id,
-        currentLikes
-      )
-
-      localStorage.setItem(`liked-${id}`, 'true')
-
-      setComments((prev) =>
-        prev.map((item) =>
-          item.id === id
-            ? { ...item, likes: newLikes }
-            : item
-        )
-      )
-    } catch (err) {
-      console.log(err)
+      const likes = await likeCommentService(id);
+      localStorage.setItem(`liked-${id}`, "true");
+      setComments((current) =>
+        current.map((item) => (item.id === id ? { ...item, likes } : item)),
+      );
+    } catch (likeError) {
+      setError(
+        likeError instanceof Error
+          ? likeError.message
+          : "Impossible d'ajouter ce j'aime.",
+      );
     }
-  }
+  };
 
-  return {
-    comments,
-    loading,
-    addComment,
-    likeComment,
-  }
+  return { comments, loading, error, addComment, likeComment };
 }

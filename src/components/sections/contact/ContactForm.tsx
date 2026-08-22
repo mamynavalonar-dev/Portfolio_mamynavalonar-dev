@@ -30,7 +30,7 @@ const fieldVariants: Variants = {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.6,
+      duration: 0.22,
       ease: smoothEase,
     },
   },
@@ -126,16 +126,16 @@ export default function ContactForm() {
     <motion.div
       initial={{ opacity: 0, x: -40 }}
       whileInView={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.8, ease: smoothEase }}
-      viewport={{ once: false, amount: 0.2 }}
-      className="rounded-[28px] border border-white/10 bg-white/[0.04] backdrop-blur-xl p-5 md:p-8 flex flex-col h-full"
+      transition={{ duration: 0.25, ease: smoothEase }}
+      viewport={{ once: true, amount: 0.2 }}
+      className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 md:p-8 flex flex-col h-full"
     >
       {/* HEADER */}
       <motion.div
         variants={fieldVariants}
         initial="hidden"
         whileInView="show"
-        viewport={{ once: false }}
+        viewport={{ once: true }}
         transition={{ delay: 0.05 }}
       >
         <h2 className="text-2xl md:text-3xl font-bold mb-3">Contactez-moi</h2>
@@ -170,9 +170,12 @@ export default function ContactForm() {
           variants={fieldVariants}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: false }}
+          viewport={{ once: true }}
           transition={{ delay: 0.1 }}
         >
+          <label htmlFor="contact-name" className="sr-only">
+            Votre nom
+          </label>
           <div className="relative">
             <User
               className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40"
@@ -180,6 +183,7 @@ export default function ContactForm() {
             />
 
             <input
+              id="contact-name"
               name="name"
               type="text"
               value={name}
@@ -200,9 +204,12 @@ export default function ContactForm() {
           variants={fieldVariants}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: false }}
+          viewport={{ once: true }}
           transition={{ delay: 0.16 }}
         >
+          <label htmlFor="contact-email" className="sr-only">
+            Votre adresse e-mail
+          </label>
           <div className="relative">
             <Mail
               className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40"
@@ -210,6 +217,7 @@ export default function ContactForm() {
             />
 
             <input
+              id="contact-email"
               name="email"
               type="email"
               value={email}
@@ -229,9 +237,12 @@ export default function ContactForm() {
           variants={fieldVariants}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: false }}
+          viewport={{ once: true }}
           transition={{ delay: 0.22 }}
         >
+          <label htmlFor="contact-message" className="sr-only">
+            Votre message
+          </label>
           <div className="relative">
             <MessageSquare
               className="absolute left-4 top-5 text-white/40"
@@ -239,6 +250,7 @@ export default function ContactForm() {
             />
 
             <textarea
+              id="contact-message"
               name="message"
               rows={5}
               value={message}
@@ -274,7 +286,7 @@ export default function ContactForm() {
           variants={fieldVariants}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: false }}
+          viewport={{ once: true }}
           transition={{ delay: 0.28 }}
           whileHover={
             submitting
@@ -298,7 +310,7 @@ export default function ContactForm() {
           variants={fieldVariants}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: false }}
+          viewport={{ once: true }}
           transition={{ delay: 0.34 }}
           className="text-sm text-white/55 mb-4"
         >
@@ -313,7 +325,7 @@ export default function ContactForm() {
           variants={fieldVariants}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: false }}
+          viewport={{ once: true }}
           transition={{ delay: 0.36 }}
           whileHover={{
             scale: 1.05,
@@ -353,7 +365,7 @@ export default function ContactForm() {
                 variants={fieldVariants}
                 initial="hidden"
                 whileInView="show"
-                viewport={{ once: false }}
+                viewport={{ once: true }}
                 transition={{
                   delay: 0.42 + i * 0.05,
                 }}

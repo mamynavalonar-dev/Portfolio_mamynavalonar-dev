@@ -18,6 +18,24 @@ import {
   X,
 } from "lucide-react";
 import { Project } from "@/types";
+import {
+  listToInput,
+  normalizeProject,
+  toStringList,
+} from "@/lib/projectFields";
+
+type ProjectForm = Omit<Project, "technologies" | "key_features"> & {
+  technologies: string;
+  key_features: string;
+};
+
+function projectToForm(project: Project): ProjectForm {
+  return {
+    ...project,
+    technologies: listToInput(project.technologies),
+    key_features: listToInput(project.key_features),
+  };
+}
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
@@ -25,7 +43,7 @@ export default function ProjectDetailPage() {
 
   const [project, setProject] = useState<Project | null>(null);
   const [editMode, setEditMode] = useState(false);
-  const [form, setForm] = useState<Project>({
+  const [form, setForm] = useState<ProjectForm>({
     id: "",
     title: "",
     description: "",
@@ -47,8 +65,11 @@ export default function ProjectDetailPage() {
       .eq("id", id)
       .single();
 
-    setProject(data);
-    setForm(data);
+    if (data) {
+      const normalizedProject = normalizeProject(data);
+      setProject(normalizedProject);
+      setForm(projectToForm(normalizedProject));
+    }
   
   }, [id]);
 
@@ -104,13 +125,35 @@ useEffect(() => {
 };
 
   const handleUpdate = async () => {
+  const technologies = toStringList(form.technologies);
+  const keyFeatures = toStringList(form.key_features);
+  const updates = {
+    title: form.title,
+    description: form.description,
+    technologies,
+    key_features: keyFeatures,
+    image_url: form.image_url,
+    image_urls: form.image_urls,
+    live_url: form.live_url || null,
+    github_url: form.github_url || null,
+  };
+
   const { error } = await supabase
     .from("projects")
-    .update(form)
+    .update(updates)
     .eq("id", id);
 
   if (!error) {
-    setProject(form);
+    setProject({
+      id: form.id,
+      created_at: form.created_at,
+      ...updates,
+    });
+    setForm((current) => ({
+      ...current,
+      technologies: listToInput(technologies),
+      key_features: listToInput(keyFeatures),
+    }));
     setEditMode(false);
 
     Swal.fire({
@@ -139,13 +182,8 @@ useEffect(() => {
       </div>
     );
 
-  const tech = (form.technologies || "")
-    .split(",")
-    .filter((t: string) => t.trim() !== "");
-
-  const features = (form.key_features || "")
-    .split(",")
-    .filter((f: string) => f.trim() !== "");
+  const tech = toStringList(form.technologies);
+  const features = toStringList(form.key_features);
 
   const galleryImages =
     project.image_urls && Array.isArray(project.image_urls)
@@ -199,6 +237,7 @@ useEffect(() => {
               exit={{ scale: 0.96, opacity: 0 }}
               transition={{ duration: 0.25 }}
               src={galleryImages[currentImage]}
+              alt={`${project.title} — image ${currentImage + 1}`}
               className="max-w-[92vw] max-h-[78vh] rounded-2xl object-contain"
             />
 
@@ -416,6 +455,7 @@ useEffect(() => {
                     duration: 0.35,
                   }}
                   src={galleryImages[currentImage]}
+                  alt={`${project.title} — image ${currentImage + 1}`}
                   onClick={() => setPreviewOpen(true)}
                   className="w-full h-[200px] sm:h-[240px] md:h-[270px] xl:h-[280px] 2xl:h-[300px] object-cover cursor-pointer"
                 />
@@ -507,7 +547,10 @@ useEffect(() => {
             </button>
 
             <button
-              onClick={() => setEditMode(false)}
+              onClick={() => {
+                setForm(projectToForm(project));
+                setEditMode(false);
+              }}
               className="w-full sm:w-auto px-5 py-3 rounded-2xl border border-white/10 hover:bg-white/5 transition"
             >
               Annuler

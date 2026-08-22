@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { normalizeProject } from '@/lib/projectFields'
 
 export const fetchProjects = async () => {
   const { data } = await supabase
@@ -8,7 +9,7 @@ export const fetchProjects = async () => {
       ascending: true,
     })
 
-  return data || []
+  return (data || []).map((project) => normalizeProject(project))
 }
 
 export const fetchCertificates = async () => {

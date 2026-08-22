@@ -1,77 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
+import { useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { ArrowDown, Circle } from "lucide-react";
-import App from "@/components/band/App";
 import TextType from "@/components/band/TextType";
-import ShapeGrid from "@/components/ShapeGrid";
+
+const BandApp = dynamic(() => import("@/components/band/App"), {
+  ssr: false,
+});
 
 const skills = ["Typescript", "React.js", "Tailwind"];
 
-type HeroProps = {
-  showApp: boolean;
-};
-
-export default function Hero({ showApp }: HeroProps) {
-  const [startAnim, setStartAnim] = useState(false);
-
-  useEffect(() => {
-    const heroPlayed = sessionStorage.getItem("heroPlayed");
-    const delay = heroPlayed === "true" ? 0 : 3600;
-
-    const textTimer = setTimeout(() => {
-      setStartAnim(true);
-    }, delay);
-
-    const appTimer =
-      heroPlayed === "true"
-        ? undefined
-        : setTimeout(() => {
-            sessionStorage.setItem("heroPlayed", "true");
-          }, delay + 1500);
-
-    return () => {
-      clearTimeout(textTimer);
-      if (appTimer) clearTimeout(appTimer);
-    };
-  }, []);
+export default function Hero() {
+  const reducedMotion = useReducedMotion();
+  const [isLanyardDragging, setIsLanyardDragging] = useState(false);
+  const startAnim = true;
 
   const scrollToPortfolio = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     document
       .getElementById("portfolio")
-      ?.scrollIntoView({ behavior: "smooth" });
+      ?.scrollIntoView({ behavior: "auto" });
   };
 
   return (
     <section
       id="home"
-      className="relative flex min-h-screen items-center justify-start overflow-hidden px-6 md:pl-[120px] md:pr-[60px]"
+      className="relative isolate flex min-h-screen items-center justify-start overflow-visible px-6 md:pl-[120px] md:pr-[60px]"
     >
-      {/* BACKGROUND GRID */}
-      <div className="absolute inset-0 z-0">
-        <ShapeGrid
-          shape="hexagon"
-          squareSize={40}
-          direction="diagonal"
-          speed={0.3}
-          borderColor="#2a2a2a"
-          hoverFillColor="rgba(255,255,255,0.06)"
-          hoverTrailAmount={6}
-        />
-      </div>
-
       {/* HALO DE LUMIÈRE */}
       <div className="glow-bg absolute inset-0 z-[1] pointer-events-none" />
 
-      {/* APP LAYER */}
-      <div
-        className="absolute inset-0 z-40"
-        style={{ pointerEvents: showApp ? "auto" : "none" }}
-      >
-        {showApp && <App />}
-      </div>
+      {/* LANYARD 3D — Canvas plein écran pour ne jamais couper le badge */}
+      {!reducedMotion && (
+        <div
+          className={`pointer-events-none absolute inset-0 hidden overflow-visible md:block ${
+            isLanyardDragging ? "z-[8]" : "z-[4]"
+          }`}
+        >
+          <BandApp onDragChange={setIsLanyardDragging} />
+        </div>
+      )}
 
       {/* TEXT */}
       <div className="relative z-[5] w-full md:max-w-[600px]">
@@ -83,7 +53,7 @@ export default function Hero({ showApp }: HeroProps) {
               ? { opacity: 1, y: 0, filter: "blur(0px)" }
               : { opacity: 0, y: 30, filter: "blur(12px)" }
           }
-          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           className="mb-5 flex items-center gap-2"
         >
           <Circle size={8} className="fill-emerald-400 text-emerald-400" />
@@ -102,10 +72,10 @@ export default function Hero({ showApp }: HeroProps) {
                 : { opacity: 0, scale: 0.85, y: 50 }
             }
             transition={{
-              duration: 1,
+              duration: 0.24,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="text-gradient text-[clamp(32px,6vw,62px)] font-extrabold leading-[1.05] tracking-[-0.03em]"
+            className="text-gradient inline-block w-max max-w-none overflow-visible whitespace-nowrap pr-[0.22em] text-[clamp(32px,6vw,62px)] font-extrabold leading-[1.05] tracking-[-0.03em]"
           >
             Développeur
           </motion.h1>
@@ -118,8 +88,8 @@ export default function Hero({ showApp }: HeroProps) {
                 : { opacity: 0, x: -80, rotate: -4 }
             }
             transition={{
-              duration: 1,
-              delay: 0.2,
+              duration: 0.24,
+              delay: 0.04,
               ease: [0.22, 1, 0.36, 1],
             }}
             className="mb-6 text-[clamp(32px,6vw,62px)] font-extrabold leading-[1.05] tracking-[-0.03em] text-[var(--text-secondary)]"
@@ -132,7 +102,7 @@ export default function Hero({ showApp }: HeroProps) {
         <motion.div
           initial={false}
           animate={startAnim ? { opacity: 1, x: 0 } : { opacity: 0, x: 40 }}
-          transition={{ duration: 0.8, delay: 0.35 }}
+          transition={{ duration: 0.22, delay: 0.04 }}
           className="mb-3"
         >
           <span className="font-mono text-[15px] tracking-[0.1em] text-[var(--text-secondary)]">
@@ -143,11 +113,11 @@ export default function Hero({ showApp }: HeroProps) {
                 "React • Next.js • TypeScript",
                 "Ouvert aux opportunités",
               ]}
-              typingSpeed={75}
-              pauseDuration={1500}
+              typingSpeed={24}
+              pauseDuration={900}
               showCursor
               cursorCharacter="_"
-              deletingSpeed={50}
+              deletingSpeed={16}
               cursorBlinkDuration={0.5}
             />
           </span>
@@ -161,7 +131,7 @@ export default function Hero({ showApp }: HeroProps) {
               ? { opacity: 1, y: 0, scale: 1 }
               : { opacity: 0, y: 50, scale: 0.96 }
           }
-          transition={{ duration: 1, delay: 0.5 }}
+          transition={{ duration: 0.24, delay: 0.05 }}
           className="mb-7 w-full max-w-[460px]"
         >
           <p
@@ -182,8 +152,8 @@ export default function Hero({ showApp }: HeroProps) {
             hidden: {},
             visible: {
               transition: {
-                staggerChildren: 0.12,
-                delayChildren: 0.7,
+                staggerChildren: 0.035,
+                delayChildren: 0.06,
               },
             },
           }}
@@ -196,7 +166,7 @@ export default function Hero({ showApp }: HeroProps) {
                 hidden: { opacity: 0, y: 25, scale: 0.85 },
                 visible: { opacity: 1, y: 0, scale: 1 },
               }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.2 }}
               className="rounded-full border border-[var(--border)] bg-[var(--bg-card)] px-3 py-1.5 font-mono text-[11px] text-[var(--text-secondary)]"
             >
               {skill}
@@ -208,7 +178,7 @@ export default function Hero({ showApp }: HeroProps) {
         <motion.div
           initial={false}
           animate={startAnim ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-          transition={{ duration: 0.8, delay: 0.85 }}
+          transition={{ duration: 0.22, delay: 0.08 }}
           className="mb-7"
         >
           <a href="#portfolio" onClick={scrollToPortfolio} className="btn-glow">
@@ -221,7 +191,7 @@ export default function Hero({ showApp }: HeroProps) {
         <motion.div
           initial={false}
           animate={startAnim ? { opacity: 1, y: 0 } : { opacity: 0, y: 25 }}
-          transition={{ duration: 0.8, delay: 1 }}
+          transition={{ duration: 0.22, delay: 0.1 }}
           className="flex flex-col gap-1.5"
         >
           <span className="font-mono text-[13px] text-[var(--text-muted)]">
@@ -239,29 +209,18 @@ export default function Hero({ showApp }: HeroProps) {
         initial={false}
         animate={startAnim ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
         transition={{
-          duration: 0.9,
-          delay: 1.2,
+          duration: 0.22,
+          delay: 0.1,
           ease: [0.22, 1, 0.36, 1],
         }}
         className="pointer-events-none absolute bottom-9 left-1/2 z-20 -translate-x-1/2"
       >
-        <motion.div
-          animate={{
-            y: [0, 6, 0],
-            opacity: [1, 0.65, 1],
-          }}
-          transition={{
-            duration: 1.4,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className="flex items-center justify-center gap-2"
-        >
+        <div className="flex items-center justify-center gap-2">
           <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--text-muted)]">
             Défiler
           </span>
           <ArrowDown size={14} className="text-[var(--text-secondary)]" />
-        </motion.div>
+        </div>
       </motion.div>
     </section>
   );

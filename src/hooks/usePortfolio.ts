@@ -1,100 +1,105 @@
-'use client'
+"use client";
 
-import { useCallback, useEffect, useState } from 'react'
-import { Project, Certificate, TechStack } from '@/types'
+import { useCallback, useEffect, useState } from "react";
+import { Project, Certificate, TechStack } from "@/types";
 import {
   fetchCertificates,
   fetchProjects,
   fetchTechStacks,
-} from '@/lib/portfolioService'
+} from "@/lib/portfolioService";
+import { normalizeProject } from "@/lib/projectFields";
+import type { PublicPortfolioData } from "@/types";
 
-export default function usePortfolio() {
-  const [projects, setProjects] = useState<Project[]>([])
-  const [certificates, setCertificates] =
-    useState<Certificate[]>([])
-  const [techStacks, setTechStacks] =
-    useState<TechStack[]>([])
+export default function usePortfolio(initialPortfolio?: PublicPortfolioData) {
+  const [projects, setProjects] = useState<Project[]>(
+    initialPortfolio?.projects ?? [],
+  );
+  const [certificates, setCertificates] = useState<Certificate[]>(
+    initialPortfolio?.certificates ?? [],
+  );
+  const [techStacks, setTechStacks] = useState<TechStack[]>(
+    initialPortfolio?.techStacks ?? [],
+  );
 
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!initialPortfolio);
 
-    const loadPortfolio = useCallback(async () => {
-    const cachedProjects =
-      sessionStorage.getItem(
-        'portfolioProjects'
-      )
+  const loadPortfolio = useCallback(async (hydrateFromCache: boolean) => {
+    if (hydrateFromCache) {
+      try {
+        const cachedProjects = sessionStorage.getItem("portfolioProjects");
+        const cachedCertificates = sessionStorage.getItem(
+          "portfolioCertificates",
+        );
+        const cachedTechStacks = sessionStorage.getItem("portfolioTechStacks");
 
-    const cachedCertificates =
-      sessionStorage.getItem(
-        'portfolioCertificates'
-      )
+        if (cachedProjects) {
+          const parsedProjects = JSON.parse(cachedProjects) as Record<
+            string,
+            unknown
+          >[];
 
-    const cachedTechStacks =
-      sessionStorage.getItem(
-        'portfolioTechStacks'
-      )
+          setProjects(
+            parsedProjects.map((project) => normalizeProject(project)),
+          );
+        }
 
-    if (cachedProjects) {
-      setProjects(JSON.parse(cachedProjects))
+        if (cachedCertificates) {
+          setCertificates(JSON.parse(cachedCertificates));
+        }
+
+        if (cachedTechStacks) {
+          setTechStacks(JSON.parse(cachedTechStacks));
+        }
+      } catch {
+        // Le cache navigateur est uniquement une optimisation facultative.
+      }
     }
 
-    if (cachedCertificates) {
-      setCertificates(
-        JSON.parse(cachedCertificates)
-      )
+    try {
+      const [projectsData, certificatesData, techStacksData] =
+        await Promise.all([
+          fetchProjects(),
+          fetchCertificates(),
+          fetchTechStacks(),
+        ]);
+
+      setProjects(projectsData || []);
+      setCertificates(certificatesData || []);
+      setTechStacks(techStacksData || []);
+
+      try {
+        sessionStorage.setItem(
+          "portfolioProjects",
+          JSON.stringify(projectsData || []),
+        );
+        sessionStorage.setItem(
+          "portfolioCertificates",
+          JSON.stringify(certificatesData || []),
+        );
+        sessionStorage.setItem(
+          "portfolioTechStacks",
+          JSON.stringify(techStacksData || []),
+        );
+      } catch {
+        // L'interface reste fonctionnelle si le stockage navigateur est bloqué.
+      }
+    } finally {
+      setLoading(false);
     }
-
-    if (cachedTechStacks) {
-      setTechStacks(
-        JSON.parse(cachedTechStacks)
-      )
-    }
-
-    const [
-      projectsData,
-      certificatesData,
-      techStacksData,
-    ] = await Promise.all([
-      fetchProjects(),
-      fetchCertificates(),
-      fetchTechStacks(),
-    ])
-
-    setProjects(projectsData || [])
-    setCertificates(certificatesData || [])
-    setTechStacks(techStacksData || [])
-
-    sessionStorage.setItem(
-      'portfolioProjects',
-      JSON.stringify(projectsData || [])
-    )
-
-    sessionStorage.setItem(
-      'portfolioCertificates',
-      JSON.stringify(certificatesData || [])
-    )
-
-    sessionStorage.setItem(
-      'portfolioTechStacks',
-      JSON.stringify(techStacksData || [])
-    )
-
-    setLoading(false)
-  
   }, []);
 
-useEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(() => {
-      void loadPortfolio()
-    }, 0)
+      void loadPortfolio(!initialPortfolio);
+    }, 0);
 
-    return () => clearTimeout(timer)
-  }, [loadPortfolio])
-
+    return () => clearTimeout(timer);
+  }, [initialPortfolio, loadPortfolio]);
 
   return {
     projects,
     certificates,
     techStacks,
     loading,
-  }
+  };
 }

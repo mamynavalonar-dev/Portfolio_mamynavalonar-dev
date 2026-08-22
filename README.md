@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Portfolio — Mamy Navalona Antonio
 
-## Getting Started
+Portfolio personnel de **RAKOTONIAINA Mamy Navalona Antonio**, développeur Full Stack junior. L’application présente les projets, certificats et technologies, avec un espace d’administration protégé, un formulaire de contact et des commentaires publics modérés.
 
-First, run the development server:
+[Voir le portfolio en ligne](https://mamynavalona-dev.vercel.app)
+
+## Fonctionnalités
+
+- rendu initial côté serveur des contenus publics avec revalidation ;
+- vitrine de projets, certificats et technologies ;
+- formulaire de contact anti-spam avec boîte de réception administrateur ;
+- commentaires avec images contrôlées et compteur de « j’aime » atomique ;
+- rôle administrateur réel, politiques RLS et stockage Supabase protégé ;
+- animations adaptées à `prefers-reduced-motion` et 3D chargée uniquement sur ordinateur ;
+- SEO complet : métadonnées, JSON-LD, Open Graph, sitemap et robots ;
+- tests unitaires et intégration continue GitHub Actions.
+
+## Stack
+
+Next.js 16, React 19, TypeScript, Tailwind CSS 3, Supabase/PostgreSQL, Framer Motion, Three.js et Vitest.
+
+## Installation locale
+
+Prérequis : Node.js 20.9+ et pnpm 11.22.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+corepack enable
+pnpm install
+cp .env.example .env.local
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrez ensuite [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Configuration Supabase
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Créez un projet Supabase et renseignez `.env.local` à partir de `.env.example`.
+2. Appliquez dans l’ordre les fichiers de `supabase/migrations/` avec Supabase CLI (`supabase db push`) ou le SQL Editor.
+3. Créez votre compte dans Supabase Auth.
+4. Accordez-lui explicitement le rôle administrateur :
 
-## Learn More
+```sql
+insert into public.admin_users (user_id)
+select id from auth.users
+where email = 'votre-email@example.com'
+on conflict (user_id) do nothing;
+```
 
-To learn more about Next.js, take a look at the following resources:
+La clé `SUPABASE_SECRET_KEY` reste exclusivement côté serveur. Elle ne doit jamais être placée dans une variable `NEXT_PUBLIC_*` ni être commitée.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Commandes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm dev        # serveur de développement
+pnpm lint       # ESLint
+pnpm typecheck  # vérification TypeScript
+pnpm test       # tests Vitest
+pnpm check      # lint + types + tests
+pnpm build      # build de production
+pnpm audit --prod
+```
 
-## Deploy on Vercel
+## Structure utile
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```text
+src/app/api/                 API contact, commentaires et administration
+src/app/admin/               interface d’administration
+src/components/sections/     sections publiques du portfolio
+src/lib/                     accès aux données, validation et sécurité serveur
+supabase/migrations/         schéma versionné, RLS et fonctions atomiques
+tests/                       tests unitaires
+.github/workflows/ci.yml     pipeline de qualité
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Sécurité
+
+Les pages administrateur vérifient l’utilisateur auprès de Supabase Auth puis son appartenance à `admin_users`. Les opérations sensibles sont protégées par RLS ou exécutées par des routes serveur. Les soumissions publiques sont validées, limitées par débit et les compteurs concurrents sont mis à jour dans des fonctions PostgreSQL atomiques.
+
+## Licence
+
+Le code et les contenus de ce portfolio restent la propriété de RAKOTONIAINA Mamy Navalona Antonio.

@@ -7,6 +7,8 @@ import { Plus } from "lucide-react";
 import AddProjectModal from "./AddProjectModal";
 import { supabase } from "@/lib/supabase";
 import { Project } from "@/types";
+import { normalizeProject } from "@/lib/projectFields";
+import ResponsiveImage from "@/components/ui/ResponsiveImage";
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -21,7 +23,7 @@ export default function ProjectsPage() {
       .select("*");
 
     if (!error && data) {
-      const sortedProjects = data.sort(
+      const sortedProjects = data.map((project) => normalizeProject(project)).sort(
         (a, b) =>
           new Date(a.created_at).getTime() -
           new Date(b.created_at).getTime()
@@ -123,8 +125,10 @@ useEffect(() => {
                   {/* IMAGE */}
                   <div className="w-full h-[150px] sm:h-[160px] lg:h-[140px] rounded-xl overflow-hidden bg-white/[0.03] mb-3">
                     {project.image_url ? (
-                      <img
+                      <ResponsiveImage
                         src={project.image_url}
+                        alt={`Aperçu du projet ${project.title}`}
+                        loading="lazy"
                         className="w-full h-full object-cover hover:scale-105 transition duration-500"
                       />
                     ) : (
