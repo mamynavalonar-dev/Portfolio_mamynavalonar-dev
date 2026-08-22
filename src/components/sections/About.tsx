@@ -1,11 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, useReducedMotion, Variants } from "framer-motion";
 import { Code, Award, Globe, FileText, ArrowUpRight } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import ProfileCard from "@/components/ui/ProfileCard";
-import GridScan from "@/components/ui/GridScan";
 
 /* ================== ANIMATION ================== */
 
@@ -13,19 +11,18 @@ const container: Variants = {
   hidden: {},
   show: {
     transition: {
-      staggerChildren: 0.16,
+      staggerChildren: 0.04,
     },
   },
 };
 
 const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 35, filter: "blur(8px)" },
+  hidden: { opacity: 0, y: 24 },
   show: {
     opacity: 1,
     y: 0,
-    filter: "blur(0px)",
     transition: {
-      duration: 1,
+      duration: 0.3,
       ease: [0.22, 1, 0.36, 1],
     },
   },
@@ -38,7 +35,7 @@ const slideLeft: Variants = {
     x: 0,
     rotate: 0,
     transition: {
-      duration: 1.2,
+      duration: 0.32,
       ease: [0.22, 1, 0.36, 1],
     },
   },
@@ -51,7 +48,7 @@ const pop: Variants = {
     scale: 1,
     y: 0,
     transition: {
-      duration: 0.85,
+      duration: 0.26,
       ease: [0.22, 1, 0.36, 1],
     },
   },
@@ -69,57 +66,29 @@ export default function About({
   const [isMobile, setIsMobile] = useState(false);
   const reducedMotion = useReducedMotion();
 
-  const [projectCount, setProjectCount] = useState(initialProjectCount);
-  const [certificateCount, setCertificateCount] = useState(initialCertificateCount);
+  const projectCount = initialProjectCount;
+  const certificateCount = initialCertificateCount;
 
-    const fetchStats = useCallback(async () => {
-    try {
-      const { count: projects } = await supabase
-        .from("projects")
-        .select("*", { count: "exact", head: true });
-
-      const { count: certificates } = await supabase
-        .from("certificates")
-        .select("*", { count: "exact", head: true });
-
-      setProjectCount(projects || 0);
-      setCertificateCount(certificates || 0);
-    } catch {
-      setProjectCount(0);
-      setCertificateCount(0);
-    }
-  
-  }, []);
-
-useEffect(() => {
+  useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
 
     check();
     window.addEventListener("resize", check);
 
-    const statsTimer = setTimeout(() => {
-      void fetchStats();
-    }, 0);
-
     return () => {
-      clearTimeout(statsTimer);
       window.removeEventListener("resize", check);
     };
-  }, [fetchStats]);
+  }, []);
 
 
   const scrollToPortfolio = () => {
     const el = document.getElementById("portfolio");
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth" });
-    }
+    if (el) el.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth" });
   };
 
   const scrollToContact = () => {
     const el = document.getElementById("contact");
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth" });
-    }
+    if (el) el.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth" });
   };
 
   const stats = [
@@ -152,29 +121,17 @@ useEffect(() => {
         overflow: "hidden",
       }}
     >
-      {/* GRID SCAN BACKGROUND */}
+      {/* FOND STATIQUE : aucun shader WebGL pendant le défilement */}
       <div
         style={{
           position: "absolute",
           inset: 0,
           zIndex: 0,
-          pointerEvents: isMobile ? "none" : "auto",
+          pointerEvents: "none",
+          background:
+            "radial-gradient(circle at 72% 30%, rgba(255,255,255,0.055), transparent 38%)",
         }}
-      >
-        {!reducedMotion && <GridScan
-          sensitivity={0.5}
-          lineThickness={1}
-          linesColor="#23262b"
-          gridScale={0.08}
-          scanColor="#ffffff"
-          scanOpacity={0.28}
-          scanSoftness={2.4}
-          scanGlow={0.45}
-          scanDuration={3.5}
-          scanDelay={2.5}
-          lineJitter={0.15}
-        />}
-      </div>
+      />
 
       <div style={{ width: "100%", position: "relative", zIndex: 1 }}>
         <div
@@ -191,7 +148,7 @@ useEffect(() => {
             variants={container}
             initial="hidden"
             whileInView="show"
-            viewport={{ once: false, margin: "-80px" }}
+            viewport={{ once: true, margin: "-80px" }}
             style={{
               maxWidth: "600px",
               width: "100%",
@@ -231,8 +188,8 @@ useEffect(() => {
                   opacity: 1,
                   y: 0,
                   transition: {
-                    duration: 1.1,
-                    delay: 0.2,
+                    duration: 0.3,
+                    delay: 0.04,
                   },
                 },
               }}
@@ -259,8 +216,8 @@ useEffect(() => {
                   opacity: 1,
                   scale: 1,
                   transition: {
-                    duration: 0.9,
-                    delay: 0.3,
+                    duration: 0.28,
+                    delay: 0.06,
                   },
                 },
               }}
@@ -366,7 +323,7 @@ useEffect(() => {
               variants={slideLeft}
               initial="hidden"
               whileInView="show"
-              viewport={{ once: false }}
+              viewport={{ once: true }}
               style={{
                 width: "48%",
                 display: "flex",
@@ -382,7 +339,7 @@ useEffect(() => {
                 status="Disponible"
                 contactText="Me contacter"
                 enableTilt
-                behindGlowEnabled
+                behindGlowEnabled={false}
                 onContactClick={scrollToContact}
               />
             </motion.div>
@@ -394,7 +351,7 @@ useEffect(() => {
           variants={container}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: false }}
+          viewport={{ once: true }}
           style={{
             display: "grid",
             gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",

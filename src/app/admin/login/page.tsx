@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import {
@@ -14,6 +14,10 @@ import {
 
 export default function LoginPage() {
   const router = useRouter();
+
+  useEffect(() => {
+    router.prefetch("/admin/dashboard");
+  }, [router]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

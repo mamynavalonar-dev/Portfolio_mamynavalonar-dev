@@ -9,97 +9,68 @@ import About from "@/components/sections/About";
 import PortfolioShowcase from "@/components/sections/PortfolioShowcase";
 import ContactSection from "@/components/sections/contact/ContactSection";
 import WelcomeScreen from "@/components/WelcomeScreen";
-import { hasPlayedIntro, setIntroPlayed } from "@/lib/introState";
 import type { PublicPortfolioData } from "@/types";
+
+const INTRO_VISIBLE_MS = 700;
 
 export default function HomeClient({
   initialPortfolio,
 }: {
   initialPortfolio: PublicPortfolioData;
 }) {
-  const [showWelcome, setShowWelcome] = useState(false);
-  const [showApp, setShowApp] = useState(true);
+  // Le landing est présent dès le premier rendu. L'application complète se
+  // prépare simultanément derrière lui, y compris le badge 3D.
+  const [showWelcome, setShowWelcome] = useState(true);
 
   useEffect(() => {
-    let introTimer: ReturnType<typeof setTimeout> | undefined;
+    if (window.location.hash) {
+      const skipTimer = window.setTimeout(() => setShowWelcome(false), 0);
+      return () => window.clearTimeout(skipTimer);
+    }
 
-    const initializeTimer = setTimeout(() => {
-      const currentHash = window.location.hash;
-      const pathname = window.location.pathname;
+    window.scrollTo({ top: 0, behavior: "auto" });
 
-      if (currentHash === "#portfolio") {
-        setShowWelcome(false);
-        setShowApp(true);
-        return;
-      }
-
-      const navEntries = performance.getEntriesByType("navigation");
-      const navigationType =
-        navEntries.length > 0
-          ? (navEntries[0] as PerformanceNavigationTiming).type
-          : null;
-
-      if (navigationType === "reload" && pathname === "/") {
-        sessionStorage.removeItem("introPlayed");
-        sessionStorage.removeItem("heroPlayed");
-        if (window.location.hash) history.replaceState(null, "", "/");
-        window.scrollTo({ top: 0, behavior: "instant" });
-      }
-
-      if (!hasPlayedIntro()) {
-        setShowWelcome(true);
-        setShowApp(false);
-        introTimer = setTimeout(() => {
-          setShowWelcome(false);
-          setShowApp(true);
-          setIntroPlayed();
-        }, 2800);
-        return;
-      }
-
+    const timer = window.setTimeout(() => {
       setShowWelcome(false);
-      setShowApp(true);
-    }, 0);
+    }, INTRO_VISIBLE_MS);
 
-    return () => {
-      clearTimeout(initializeTimer);
-      if (introTimer) clearTimeout(introTimer);
-    };
+    return () => window.clearTimeout(timer);
   }, []);
 
   return (
-    <MotionConfig reducedMotion="user">
-    <main className="relative overflow-hidden">
-      <AnimatedBackground />
+    <MotionConfig
+      reducedMotion="user"
+      transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <main className="relative overflow-x-hidden">
+        <AnimatedBackground />
 
-      <div className="relative z-[2]">
-        <Navbar />
-        <Hero showApp={showApp} />
-        <About
-          initialProjectCount={initialPortfolio.projects.length}
-          initialCertificateCount={initialPortfolio.certificates.length}
-        />
-        <PortfolioShowcase initialPortfolio={initialPortfolio} />
-        <ContactSection />
-      </div>
+        <div className="relative z-[2]">
+          <Navbar />
+          <Hero />
+          <About
+            initialProjectCount={initialPortfolio.projects.length}
+            initialCertificateCount={initialPortfolio.certificates.length}
+          />
+          <PortfolioShowcase initialPortfolio={initialPortfolio} />
+          <ContactSection />
+        </div>
 
-      <AnimatePresence>
-        {showWelcome && (
-          <motion.div
-            initial={{ y: 0 }}
-            animate={{ y: 0 }}
-            exit={{ y: "-100%" }}
-            onAnimationStart={(definition) => {
-              if (definition === "exit") setShowApp(true);
-            }}
-            transition={{ duration: 1.2, ease: [0.76, 0, 0.24, 1] }}
-            className="fixed inset-0 z-[9999]"
-          >
-            <WelcomeScreen />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </main>
+        <AnimatePresence>
+          {showWelcome && (
+            <motion.div
+              key="welcome"
+              initial={{ opacity: 1, y: 0 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 1, y: "-100%" }}
+              transition={{ duration: 0.24, ease: [0.76, 0, 0.24, 1] }}
+              className="fixed inset-0 z-[9999]"
+            >
+              <WelcomeScreen />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
     </MotionConfig>
   );
 }

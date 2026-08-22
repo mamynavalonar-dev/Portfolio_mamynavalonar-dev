@@ -21,10 +21,10 @@ export default function ContactSection() {
         initial={{ opacity: 0, y: 50 }}
         whileInView={{ opacity: 1, y: 0 }}
         transition={{
-          duration: 0.8,
+          duration: 0.25,
           ease: smoothEase,
         }}
-        viewport={{ once: false, amount: 0.3 }}
+        viewport={{ once: true, amount: 0.3 }}
         className="text-center mb-12 sm:mb-14 lg:mb-16"
       >
         <motion.h1
@@ -34,11 +34,11 @@ export default function ContactSection() {
             y: [0, -10, 0],
           }}
           transition={{
-            duration: 4,
-            repeat: Infinity,
+            duration: 0.2,
+            repeat: 0,
             ease: "easeInOut",
           }}
-          viewport={{ once: false }}
+          viewport={{ once: true }}
           className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4"
         >
           Contact
@@ -51,11 +51,11 @@ export default function ContactSection() {
             y: [0, -5, 0],
           }}
           transition={{
-            duration: 4.4,
-            repeat: Infinity,
+            duration: 0.2,
+            repeat: 0,
             ease: "easeInOut",
           }}
-          viewport={{ once: false }}
+          viewport={{ once: true }}
           className="text-white/60 text-sm sm:text-base max-w-xl sm:max-w-2xl mx-auto leading-relaxed"
         >
           Une idée en tête ? Envoyez-moi un message et échangeons ensemble.

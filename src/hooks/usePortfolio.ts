@@ -19,7 +19,7 @@ export default function usePortfolio(initialPortfolio?: PublicPortfolioData) {
 
   const [loading, setLoading] = useState(!initialPortfolio)
 
-    const loadPortfolio = useCallback(async () => {
+  const loadPortfolio = useCallback(async () => {
     const cachedProjects =
       sessionStorage.getItem(
         'portfolioProjects'
@@ -82,17 +82,17 @@ export default function usePortfolio(initialPortfolio?: PublicPortfolioData) {
     )
 
     setLoading(false)
-  
-  }, []);
+  }, [])
 
-useEffect(() => {
+  useEffect(() => {
+    if (initialPortfolio) return
+
     const timer = setTimeout(() => {
       void loadPortfolio()
     }, 0)
 
     return () => clearTimeout(timer)
-  }, [loadPortfolio])
-
+  }, [initialPortfolio, loadPortfolio])
 
   return {
     projects,

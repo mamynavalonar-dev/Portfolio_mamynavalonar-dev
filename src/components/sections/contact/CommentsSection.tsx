@@ -12,7 +12,7 @@ const containerVariants: Variants = {
   hidden: {},
   show: {
     transition: {
-      staggerChildren: 0.06,
+      staggerChildren: 0.025,
     },
   },
 }
@@ -26,7 +26,7 @@ const itemVariants: Variants = {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.6,
+      duration: 0.22,
       ease: smoothEase,
     },
   },
@@ -75,11 +75,11 @@ export default function CommentsSection() {
       initial={{ opacity: 0, x: 40 }}
       whileInView={{ opacity: 1, x: 0 }}
       transition={{
-        duration: 0.8,
+        duration: 0.25,
         ease: smoothEase,
       }}
-      viewport={{ once: false, amount: 0.2 }}
-      className="rounded-[28px] md:rounded-[34px] border border-white/10 bg-white/5 backdrop-blur-xl p-5 md:p-8 h-full"
+      viewport={{ once: true, amount: 0.2 }}
+      className="rounded-[28px] md:rounded-[34px] border border-white/10 bg-white/5 p-5 md:p-8 h-full"
     >
       {/* HEADER */}
       <div className="mb-5 md:mb-6">
@@ -97,7 +97,7 @@ export default function CommentsSection() {
         variants={containerVariants}
         initial="hidden"
         whileInView="show"
-        viewport={{ once: false }}
+        viewport={{ once: true }}
         onSubmit={handleSubmit}
         className="space-y-3 md:space-y-4 mb-5 md:mb-6"
       >
@@ -191,7 +191,7 @@ export default function CommentsSection() {
         variants={containerVariants}
         initial="hidden"
         whileInView="show"
-        viewport={{ once: false }}
+        viewport={{ once: true }}
         className="rounded-[24px] md:rounded-[28px] border border-white/10 bg-black/20 p-3 h-[320px] md:h-[420px] overflow-y-auto custom-scroll"
       >
         <div className="space-y-3">
@@ -204,13 +204,11 @@ export default function CommentsSection() {
                   opacity: 0,
                   y: 18,
                   scale: 0.96,
-                  filter: 'blur(6px)',
                 }}
                 animate={{
                   opacity: 1,
                   y: 0,
                   scale: 1,
-                  filter: 'blur(0px)',
                 }}
                 exit={{
                   opacity: 0,
@@ -218,10 +216,10 @@ export default function CommentsSection() {
                   scale: 0.96,
                 }}
                 transition={{
-                  duration: 0.55,
+                  duration: 0.22,
                   ease: smoothEase,
                   layout: {
-                    duration: 0.45,
+                    duration: 0.2,
                     ease: smoothEase,
                   },
                 }}

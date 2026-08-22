@@ -159,7 +159,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
         Math.abs(targetX - currentX) > 0.05 ||
         Math.abs(targetY - currentY) > 0.05;
 
-      if (stillFar || document.hasFocus()) {
+      if (stillFar) {
         rafId = requestAnimationFrame(step);
       } else {
         running = false;
@@ -412,8 +412,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
   const shineStyle: React.CSSProperties = {
     maskImage: "none",
     filter: "brightness(0.85) contrast(1.1) saturate(0.15) opacity(0.18)",
-    animation: "pc-holo-bg 18s linear infinite",
-    animationPlayState: "running",
+    animation: "none",
     mixBlendMode: "color-dodge",
     transform: "translate3d(0, 0, 1px)",
     overflow: "hidden",
@@ -557,13 +556,13 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
               />
               {showUserInfo && (
                 <div
-                  className="absolute z-[2] flex items-center justify-between backdrop-blur-[30px] border border-white/10 pointer-events-auto"
+                className="absolute z-[2] flex items-center justify-between border border-white/10 pointer-events-auto"
                   style={
                     {
                       bottom: "16px",
                       left: "16px",
                       right: "16px",
-                      background: "rgba(255, 255, 255, 0.08)",
+                      background: "rgba(10, 10, 10, 0.72)",
                       borderRadius: "calc(30px - 16px + 6px)",
                       padding: "10px 12px",
                     } as React.CSSProperties
@@ -599,7 +598,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
                     </div>
                   </div>
                   <button
-                    className="border border-white/15 rounded-lg px-3 py-2 text-[11px] font-semibold text-white/90 cursor-pointer backdrop-blur-[10px] transition-all duration-200 ease-out hover:border-white/40 hover:bg-white/10 hover:-translate-y-px"
+                    className="border border-white/15 rounded-lg px-3 py-2 text-[11px] font-semibold text-white/90 cursor-pointer transition-all duration-200 ease-out hover:border-white/40 hover:bg-white/10 hover:-translate-y-px"
                     onClick={handleContactClick}
                     style={{ pointerEvents: "auto" }}
                     type="button"
