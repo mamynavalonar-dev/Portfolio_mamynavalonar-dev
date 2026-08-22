@@ -20,15 +20,7 @@ export default function ResponsiveImage({
   sizes = "(max-width: 768px) 100vw, 50vw",
   ...props
 }: ResponsiveImageProps) {
-  const supabaseStorageBase = process.env.NEXT_PUBLIC_SUPABASE_URL
-    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL.replace(/\/$/, "")}/storage/v1/object/public/`
-    : null;
-  const isOptimizableSupabaseImage = Boolean(
-    supabaseStorageBase && src.startsWith(supabaseStorageBase),
-  );
-  const bypassOptimization =
-    /^(blob:|data:)/.test(src) ||
-    (/^https?:/.test(src) && !isOptimizableSupabaseImage);
+  const bypassOptimization = /^(blob:|data:|https?:)/.test(src);
 
   return (
     <Image
