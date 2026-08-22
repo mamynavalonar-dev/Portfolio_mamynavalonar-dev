@@ -27,7 +27,7 @@ const TEXTURE_PATH = '/assets/bandd.png';
 useGLTF.preload(GLTF_PATH);
 useTexture.preload(TEXTURE_PATH);
 
-export default function App({ onDragChange }) {
+export default function App({ onDragChange, onReady }) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -56,12 +56,16 @@ export default function App({ onDragChange }) {
           background: 'transparent',
           width: '100%',
           height: '100%',
-          pointerEvents: isMobile ? 'none' : 'auto', // ✅ fix drag desktop
+          pointerEvents: isMobile ? 'none' : 'auto',
         }}
       >
         <ambientLight intensity={Math.PI} />
 
-        <Scene isMobile={isMobile} onDragChange={onDragChange} />
+        <Scene
+          isMobile={isMobile}
+          onDragChange={onDragChange}
+          onReady={onReady}
+        />
 
         <Environment blur={0.75}>
           <Lightformer
@@ -98,7 +102,7 @@ export default function App({ onDragChange }) {
   );
 }
 
-function Scene({ isMobile, onDragChange }) {
+function Scene({ isMobile, onDragChange, onReady }) {
   return (
     <Physics
       key={isMobile ? 'mobile' : 'desktop'}
@@ -106,19 +110,31 @@ function Scene({ isMobile, onDragChange }) {
       gravity={[0, -40, 0]}
       timeStep={1 / 60}
     >
-      {/* hanya desktop */}
-      {!isMobile && <Band isMobile={isMobile} onDragChange={onDragChange} />}
+      {!isMobile && (
+        <Band
+          isMobile={isMobile}
+          onDragChange={onDragChange}
+          onReady={onReady}
+        />
+      )}
     </Physics>
   );
 }
 
-function Band({ isMobile, onDragChange, maxSpeed = 50, minSpeed = 10 }) {
+function Band({
+  isMobile,
+  onDragChange,
+  onReady,
+  maxSpeed = 50,
+  minSpeed = 10,
+}) {
   const band = useRef();
   const fixed = useRef();
   const j1 = useRef();
   const j2 = useRef();
   const j3 = useRef();
   const card = useRef();
+  const readySent = useRef(false);
 
   const vec = new THREE.Vector3();
   const ang = new THREE.Vector3();
@@ -176,6 +192,11 @@ function Band({ isMobile, onDragChange, maxSpeed = 50, minSpeed = 10 }) {
   }, [onDragChange]);
 
   useFrame((state, delta) => {
+    if (!readySent.current) {
+      readySent.current = true;
+      onReady?.();
+    }
+
     if (dragged && card.current && canDrag) {
       vec.set(state.pointer.x, state.pointer.y, 0.5).unproject(state.camera);
       dir.copy(vec).sub(state.camera.position).normalize();
@@ -232,14 +253,19 @@ function Band({ isMobile, onDragChange, maxSpeed = 50, minSpeed = 10 }) {
     }
   });
 
-
   return (
     <>
       <group position={[3, 4, 0]}>
         <RigidBody ref={fixed} {...segmentProps} type="fixed" />
-        <RigidBody position={[0.5, 0, 0]} ref={j1} {...segmentProps}><BallCollider args={[0.1]} /></RigidBody>
-        <RigidBody position={[1, 0, 0]} ref={j2} {...segmentProps}><BallCollider args={[0.1]} /></RigidBody>
-        <RigidBody position={[1.5, 0, 0]} ref={j3} {...segmentProps}><BallCollider args={[0.1]} /></RigidBody>
+        <RigidBody position={[0.5, 0, 0]} ref={j1} {...segmentProps}>
+          <BallCollider args={[0.1]} />
+        </RigidBody>
+        <RigidBody position={[1, 0, 0]} ref={j2} {...segmentProps}>
+          <BallCollider args={[0.1]} />
+        </RigidBody>
+        <RigidBody position={[1.5, 0, 0]} ref={j3} {...segmentProps}>
+          <BallCollider args={[0.1]} />
+        </RigidBody>
 
         <RigidBody
           position={[2, 0, 0]}

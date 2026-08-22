@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import Navbar from "@/components/ui/Navbar";
@@ -12,15 +12,24 @@ import WelcomeScreen from "@/components/WelcomeScreen";
 import type { PublicPortfolioData } from "@/types";
 
 const INTRO_VISIBLE_MS = 700;
+const INTRO_MAX_WAIT_MS = 2000;
 
 export default function HomeClient({
   initialPortfolio,
 }: {
   initialPortfolio: PublicPortfolioData;
 }) {
-  // Le landing est présent dès le premier rendu. L'application complète se
-  // prépare simultanément derrière lui, y compris le badge 3D.
   const [showWelcome, setShowWelcome] = useState(true);
+  const badgeReadyRef = useRef(false);
+  const introElapsedRef = useRef(false);
+
+  const handleBadgeReady = useCallback(() => {
+    badgeReadyRef.current = true;
+
+    if (introElapsedRef.current) {
+      setShowWelcome(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (window.location.hash) {
@@ -30,11 +39,30 @@ export default function HomeClient({
 
     window.scrollTo({ top: 0, behavior: "auto" });
 
-    const timer = window.setTimeout(() => {
-      setShowWelcome(false);
+    const requiresBadge =
+      window.matchMedia("(min-width: 768px)").matches &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (requiresBadge) {
+      void import("@/components/band/App");
+    }
+
+    const minTimer = window.setTimeout(() => {
+      introElapsedRef.current = true;
+
+      if (!requiresBadge || badgeReadyRef.current) {
+        setShowWelcome(false);
+      }
     }, INTRO_VISIBLE_MS);
 
-    return () => window.clearTimeout(timer);
+    const maxTimer = window.setTimeout(() => {
+      setShowWelcome(false);
+    }, INTRO_MAX_WAIT_MS);
+
+    return () => {
+      window.clearTimeout(minTimer);
+      window.clearTimeout(maxTimer);
+    };
   }, []);
 
   return (
@@ -47,7 +75,7 @@ export default function HomeClient({
 
         <div className="relative z-[2]">
           <Navbar />
-          <Hero />
+          <Hero onBadgeReady={handleBadgeReady} />
           <About
             initialProjectCount={initialPortfolio.projects.length}
             initialCertificateCount={initialPortfolio.certificates.length}
