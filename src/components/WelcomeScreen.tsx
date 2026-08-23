@@ -106,7 +106,7 @@ export default function WelcomeScreen() {
           }}
           className="rounded-full border border-white/15 bg-white/[0.05] px-4 py-1.5 font-mono text-[11px] tracking-[0.1em] text-white/70"
         >
-          mamynavalona-dev.vercel.app
+          portfolio-mamynavalonar-dev.vercel.app
         </motion.div>
 
         <div className="h-px w-44 overflow-hidden bg-white/15">
