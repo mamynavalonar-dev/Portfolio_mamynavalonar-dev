@@ -56,7 +56,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "RAKOTONIAINA Mamy Navalona Antonio | Développeur Full Stack",
-    description: "Projets, compétences et certifications d'un développeur Full Stack junior.",
+    description:
+      "Projets, compétences et certifications d'un développeur Full Stack junior.",
     images: ["/opengraph-image"],
   },
 };
@@ -73,6 +74,21 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
+      <head>
+        <link
+          rel="preload"
+          href="/assets/kartu.glb"
+          as="fetch"
+          crossOrigin="anonymous"
+          media="(min-width: 768px)"
+        />
+        <link
+          rel="preload"
+          href="/assets/bandd.png"
+          as="image"
+          media="(min-width: 768px)"
+        />
+      </head>
       <body>
         <a
           href="#main-content"

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowDown, Circle } from "lucide-react";
 import TextType from "@/components/band/TextType";
+import ShinyText from "@/components/ui/ShinyText";
 
 const BandApp = dynamic(() => import("@/components/band/App"), {
   ssr: false,
@@ -12,7 +13,11 @@ const BandApp = dynamic(() => import("@/components/band/App"), {
 
 const skills = ["Typescript", "React.js", "Tailwind"];
 
-export default function Hero() {
+export default function Hero({
+  onBadgeReady,
+}: {
+  onBadgeReady?: () => void;
+}) {
   const reducedMotion = useReducedMotion();
   const [isLanyardDragging, setIsLanyardDragging] = useState(false);
   const startAnim = true;
@@ -29,23 +34,22 @@ export default function Hero() {
       id="home"
       className="relative isolate flex min-h-screen items-center justify-start overflow-visible px-6 md:pl-[120px] md:pr-[60px]"
     >
-      {/* HALO DE LUMIÈRE */}
       <div className="glow-bg absolute inset-0 z-[1] pointer-events-none" />
 
-      {/* LANYARD 3D — Canvas plein écran pour ne jamais couper le badge */}
       {!reducedMotion && (
         <div
           className={`pointer-events-none absolute inset-0 hidden overflow-visible md:block ${
             isLanyardDragging ? "z-[8]" : "z-[4]"
           }`}
         >
-          <BandApp onDragChange={setIsLanyardDragging} />
+          <BandApp
+            onDragChange={setIsLanyardDragging}
+            onReady={onBadgeReady}
+          />
         </div>
       )}
 
-      {/* TEXT */}
       <div className="relative z-[5] w-full md:max-w-[600px]">
-        {/* LABEL */}
         <motion.div
           initial={false}
           animate={
@@ -62,7 +66,6 @@ export default function Hero() {
           </span>
         </motion.div>
 
-        {/* HEADING */}
         <div>
           <motion.h1
             initial={false}
@@ -75,9 +78,19 @@ export default function Hero() {
               duration: 0.24,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="text-gradient inline-block w-max max-w-none overflow-visible whitespace-nowrap pr-[0.22em] text-[clamp(32px,6vw,62px)] font-extrabold leading-[1.05] tracking-[-0.03em]"
+            className="inline-block w-max max-w-none overflow-visible whitespace-nowrap pr-[0.22em] text-[clamp(32px,6vw,62px)] font-extrabold leading-[1.05] tracking-[-0.03em]"
           >
-            Développeur
+            <ShinyText
+              text="Développeur"
+              speed={2.8}
+              delay={0.2}
+              color="#b5b5b5"
+              shineColor="#ffffff"
+              spread={115}
+              direction="left"
+              yoyo
+              disabled={Boolean(reducedMotion)}
+            />
           </motion.h1>
 
           <motion.h1
@@ -92,13 +105,22 @@ export default function Hero() {
               delay: 0.04,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="mb-6 text-[clamp(32px,6vw,62px)] font-extrabold leading-[1.05] tracking-[-0.03em] text-[var(--text-secondary)]"
+            className="mb-6 text-[clamp(32px,6vw,62px)] font-extrabold leading-[1.05] tracking-[-0.03em]"
           >
-            Full Stack
+            <ShinyText
+              text="Full Stack"
+              speed={2.8}
+              delay={0.8}
+              color="#888888"
+              shineColor="#f5f5f5"
+              spread={115}
+              direction="left"
+              yoyo
+              disabled={Boolean(reducedMotion)}
+            />
           </motion.h1>
         </div>
 
-        {/* STATUS */}
         <motion.div
           initial={false}
           animate={startAnim ? { opacity: 1, x: 0 } : { opacity: 0, x: 40 }}
@@ -123,7 +145,6 @@ export default function Hero() {
           </span>
         </motion.div>
 
-        {/* DESC */}
         <motion.div
           initial={false}
           animate={
@@ -144,7 +165,6 @@ export default function Hero() {
           </p>
         </motion.div>
 
-        {/* SKILLS */}
         <motion.div
           initial="hidden"
           animate={startAnim ? "visible" : "hidden"}
@@ -174,7 +194,6 @@ export default function Hero() {
           ))}
         </motion.div>
 
-        {/* CTA */}
         <motion.div
           initial={false}
           animate={startAnim ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
@@ -187,7 +206,6 @@ export default function Hero() {
           </a>
         </motion.div>
 
-        {/* FOOTER */}
         <motion.div
           initial={false}
           animate={startAnim ? { opacity: 1, y: 0 } : { opacity: 0, y: 25 }}
@@ -204,7 +222,6 @@ export default function Hero() {
         </motion.div>
       </div>
 
-      {/* SCROLL INDICATOR */}
       <motion.div
         initial={false}
         animate={startAnim ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
