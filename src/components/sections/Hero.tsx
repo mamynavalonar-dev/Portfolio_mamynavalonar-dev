@@ -81,7 +81,7 @@ export default function Hero({
               : { opacity: 0, y: 30, filter: "blur(12px)" }
           }
           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          className="mb-5 flex items-center gap-2"
+          className="relative top-6 mb-8 flex items-center gap-2"
         >
           <Circle size={8} className="fill-emerald-400 text-emerald-400" />
           <span className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
