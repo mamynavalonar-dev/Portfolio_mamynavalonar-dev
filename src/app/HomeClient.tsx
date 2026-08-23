@@ -20,6 +20,7 @@ export default function HomeClient({
   initialPortfolio: PublicPortfolioData;
 }) {
   const [showWelcome, setShowWelcome] = useState(true);
+  const [badgeEntranceActive, setBadgeEntranceActive] = useState(false);
   const badgeReadyRef = useRef(false);
   const introElapsedRef = useRef(false);
 
@@ -75,7 +76,10 @@ export default function HomeClient({
 
         <div className="relative z-[2]">
           <Navbar />
-          <Hero onBadgeReady={handleBadgeReady} />
+          <Hero
+            onBadgeReady={handleBadgeReady}
+            startBadgeEntrance={badgeEntranceActive}
+          />
           <About
             initialProjectCount={initialPortfolio.projects.length}
             initialCertificateCount={initialPortfolio.certificates.length}
@@ -84,7 +88,11 @@ export default function HomeClient({
           <ContactSection />
         </div>
 
-        <AnimatePresence>
+        <AnimatePresence
+          onExitComplete={() => {
+            setBadgeEntranceActive(true);
+          }}
+        >
           {showWelcome && (
             <motion.div
               key="welcome"

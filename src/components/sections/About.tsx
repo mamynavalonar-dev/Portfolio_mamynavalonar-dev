@@ -128,8 +128,7 @@ export default function About({
           inset: 0,
           zIndex: 0,
           pointerEvents: "none",
-          background:
-            "radial-gradient(circle at 72% 30%, rgba(255,255,255,0.055), transparent 38%)",
+          background: "transparent",
         }}
       />
 
@@ -148,7 +147,7 @@ export default function About({
             variants={container}
             initial="hidden"
             whileInView="show"
-            viewport={{ once: true, margin: "-80px" }}
+            viewport={{ once: false, amount: 0.22, margin: "-60px" }}
             style={{
               maxWidth: "600px",
               width: "100%",
@@ -196,16 +195,20 @@ export default function About({
               style={{
                 marginTop: 18,
                 fontSize: 14,
-                color: "var(--text-secondary)",
+                color: "rgba(255,255,255,0.76)",
                 lineHeight: 1.75,
                 maxWidth: isMobile ? "100%" : "490px",
               }}
             >
-              Développeur Full Stack junior passionné par la création
-              d&apos;applications web modernes, fiables et responsives. Je
-              développe des interfaces soignées et des fonctionnalités complètes
-              en accordant une attention particulière à la qualité du code, à
-              l&apos;expérience utilisateur et aux données.
+              Développeur Full Stack junior, je développe des applications web
+              complètes en intervenant aussi bien sur les interfaces que sur la
+              logique métier, les API et les données. Je privilégie des
+              architectures claires, un code maintenable et des interfaces
+              responsives, tout en intégrant la sécurité dès la conception :
+              contrôle des accès, validation des données, protection des
+              informations sensibles et bonnes pratiques côté serveur. Mon
+              objectif est de construire des solutions fiables, performantes et
+              évolutives, pensées pour répondre à des besoins réels.
             </motion.p>
 
             {/* QUOTE */}
@@ -233,8 +236,8 @@ export default function About({
                 width: "fit-content",
               }}
             >
-              « Transformer des idées en expériences numériques épurées,
-              modernes et porteuses de sens. »
+              « Transformer des besoins réels en solutions numériques fiables,
+              intuitives, sécurisées et conçues pour durer. »
             </motion.div>
 
             {/* BUTTONS */}
@@ -323,7 +326,7 @@ export default function About({
               variants={slideLeft}
               initial="hidden"
               whileInView="show"
-              viewport={{ once: true }}
+              viewport={{ once: false, amount: 0.22 }}
               style={{
                 width: "48%",
                 display: "flex",
@@ -351,7 +354,7 @@ export default function About({
           variants={container}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: true }}
+          viewport={{ once: false, amount: 0.22 }}
           style={{
             display: "grid",
             gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",

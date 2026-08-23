@@ -1,8 +1,13 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { useRef, useState } from "react";
+import {
+  motion,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+} from "framer-motion";
 import { ArrowDown, Circle } from "lucide-react";
 import TextType from "@/components/band/TextType";
 import ShinyText from "@/components/ui/ShinyText";
@@ -15,12 +20,30 @@ const skills = ["Typescript", "React.js", "Tailwind"];
 
 export default function Hero({
   onBadgeReady,
+  startBadgeEntrance = false,
 }: {
   onBadgeReady?: () => void;
+  startBadgeEntrance?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const [isLanyardDragging, setIsLanyardDragging] = useState(false);
+  const heroRef = useRef<HTMLElement | null>(null);
   const startAnim = true;
+
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"],
+  });
+  const scrollIndicatorOpacity = useTransform(
+    scrollYProgress,
+    [0, 0.55, 0.9, 1],
+    [1, 1, 0.15, 0],
+  );
+  const scrollIndicatorY = useTransform(
+    scrollYProgress,
+    [0, 0.55, 1],
+    [0, 0, 26],
+  );
 
   const scrollToPortfolio = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
@@ -31,11 +54,10 @@ export default function Hero({
 
   return (
     <section
+      ref={heroRef}
       id="home"
       className="relative isolate flex min-h-screen items-center justify-start overflow-visible px-6 md:pl-[120px] md:pr-[60px]"
     >
-      <div className="glow-bg absolute inset-0 z-[1] pointer-events-none" />
-
       {!reducedMotion && (
         <div
           className={`pointer-events-none absolute inset-0 hidden overflow-visible md:block ${
@@ -45,6 +67,7 @@ export default function Hero({
           <BandApp
             onDragChange={setIsLanyardDragging}
             onReady={onBadgeReady}
+            startEntrance={startBadgeEntrance}
           />
         </div>
       )}
@@ -156,12 +179,15 @@ export default function Hero({
           className="mb-7 w-full max-w-[460px]"
         >
           <p
-            className="text-sm leading-[1.9] tracking-[0.01em] text-[var(--text-secondary)]"
+            className="text-sm leading-[1.9] tracking-[0.01em] text-white/75"
             style={{ textWrap: "pretty" }}
           >
-            Je crée des sites web modernes à l&apos;apparence épurée, responsive
-            et élégante. Je transforme des idées et des designs en expériences
-            numériques attrayantes et faciles à utiliser.
+            Je conçois des applications web modernes, performantes et sécurisées,
+            pensées pour offrir une expérience fluide sur tous les appareils.
+            J&apos;accorde une attention particulière à la qualité du code, à la
+            fiabilité, à la protection des données et à la maintenabilité afin de
+            créer des solutions professionnelles capables d&apos;évoluer avec les
+            besoins des utilisateurs.
           </p>
         </motion.div>
 
@@ -217,27 +243,42 @@ export default function Hero({
           </span>
 
           <span className="font-mono text-[13px] text-[var(--text-muted)]">
-            Ouvert aux opportunités à temps plein, temps partiel et en freelance
+            Disponible pour des opportunités professionnelles, des collaborations et des missions freelance
           </span>
         </motion.div>
       </div>
 
       <motion.div
-        initial={false}
-        animate={startAnim ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
-        transition={{
-          duration: 0.22,
-          delay: 0.1,
-          ease: [0.22, 1, 0.36, 1],
+        style={{
+          opacity: scrollIndicatorOpacity,
+          y: scrollIndicatorY,
         }}
         className="pointer-events-none absolute bottom-9 left-1/2 z-20 -translate-x-1/2"
       >
-        <div className="flex items-center justify-center gap-2">
+        <motion.div
+          animate={
+            reducedMotion
+              ? undefined
+              : {
+                  y: [0, -7, 0, 7, 0],
+                }
+          }
+          transition={
+            reducedMotion
+              ? undefined
+              : {
+                  duration: 1.8,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }
+          }
+          className="flex items-center justify-center gap-2"
+        >
           <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--text-muted)]">
             Défiler
           </span>
           <ArrowDown size={14} className="text-[var(--text-secondary)]" />
-        </div>
+        </motion.div>
       </motion.div>
     </section>
   );
