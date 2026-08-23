@@ -108,9 +108,8 @@ export default function PortfolioShowcase({
             Vitrine de projets
           </h1>
 
-          <p className="text-white/55 max-w-xl mx-auto text-sm md:text-base">
-            Découvrez mon parcours à travers mes projets, mes certifications et
-            mon expertise technique.
+          <p className="text-white/70 max-w-2xl mx-auto text-sm md:text-base">
+            Découvrez une sélection de projets à travers lesquels je mets en`n            pratique le développement Full Stack, la conception d&apos;interfaces,`n            la gestion des données, la sécurité et la résolution de problématiques`n            concrètes.
           </p>
         </motion.div>
 

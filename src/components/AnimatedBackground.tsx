@@ -1,14 +1,24 @@
 "use client";
 
+import GradientWaves from "@/components/background/GradientWaves";
+
 export default function AnimatedBackground() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 -z-10"
-      style={{
-        background:
-          "radial-gradient(circle at 10% 12%, rgba(255,255,255,0.12), transparent 28%), radial-gradient(circle at 88% 18%, rgba(190,190,190,0.09), transparent 30%), radial-gradient(circle at 15% 88%, rgba(160,160,160,0.08), transparent 30%), #0d0d0d",
-      }}
-    />
+      className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-[#09090d]"
+    >
+      <GradientWaves />
+
+      <div className="absolute inset-0 bg-black/18" />
+
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(circle at 50% 10%, rgba(255,255,255,0.025), transparent 36%), linear-gradient(to bottom, rgba(5,5,8,0.04), rgba(5,5,8,0.2))",
+        }}
+      />
+    </div>
   );
 }
