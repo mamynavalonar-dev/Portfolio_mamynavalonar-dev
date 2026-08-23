@@ -5,6 +5,7 @@ import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowDown, Circle } from "lucide-react";
 import TextType from "@/components/band/TextType";
+import ShinyText from "@/components/ui/ShinyText";
 
 const BandApp = dynamic(() => import("@/components/band/App"), {
   ssr: false,
@@ -77,9 +78,19 @@ export default function Hero({
               duration: 0.24,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="text-gradient inline-block w-max max-w-none overflow-visible whitespace-nowrap pr-[0.22em] text-[clamp(32px,6vw,62px)] font-extrabold leading-[1.05] tracking-[-0.03em]"
+            className="inline-block w-max max-w-none overflow-visible whitespace-nowrap pr-[0.22em] text-[clamp(32px,6vw,62px)] font-extrabold leading-[1.05] tracking-[-0.03em]"
           >
-            Développeur
+            <ShinyText
+              text="Développeur"
+              speed={2.8}
+              delay={0.2}
+              color="#b5b5b5"
+              shineColor="#ffffff"
+              spread={115}
+              direction="left"
+              yoyo
+              disabled={Boolean(reducedMotion)}
+            />
           </motion.h1>
 
           <motion.h1
@@ -94,9 +105,19 @@ export default function Hero({
               delay: 0.04,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="mb-6 text-[clamp(32px,6vw,62px)] font-extrabold leading-[1.05] tracking-[-0.03em] text-[var(--text-secondary)]"
+            className="mb-6 text-[clamp(32px,6vw,62px)] font-extrabold leading-[1.05] tracking-[-0.03em]"
           >
-            Full Stack
+            <ShinyText
+              text="Full Stack"
+              speed={2.8}
+              delay={0.8}
+              color="#888888"
+              shineColor="#f5f5f5"
+              spread={115}
+              direction="left"
+              yoyo
+              disabled={Boolean(reducedMotion)}
+            />
           </motion.h1>
         </div>
 
