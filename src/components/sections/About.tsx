@@ -252,7 +252,7 @@ export default function About({
             >
               {/* DOWNLOAD CV */}
               <a
-                href="https://drive.google.com/file/d/1cFqZ0TY0U0I51K0Tchv8E4sbOv5yAZ9x/view?usp=drive_link"
+                href="https://drive.google.com/uc?export=download&id=11wSlZrl5GtR7JZ9Zb6N7u250Q3mjtaLU"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ textDecoration: "none" }}
