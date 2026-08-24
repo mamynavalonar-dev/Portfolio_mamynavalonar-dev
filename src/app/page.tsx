@@ -7,7 +7,7 @@ const personSchema = {
   "@context": "https://schema.org",
   "@type": "Person",
   name: "RAKOTONIAINA Mamy Navalona Antonio",
-  url: "https://mamynavalona-dev.vercel.app",
+  url: "https://portfolio-mamynavalonar-dev.vercel.app",
   jobTitle: "Développeur Full Stack",
   sameAs: [
     "https://github.com/mamynavalonar-dev",

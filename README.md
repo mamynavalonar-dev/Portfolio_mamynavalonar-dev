@@ -2,7 +2,7 @@
 
 Portfolio personnel de **RAKOTONIAINA Mamy Navalona Antonio**, développeur Full Stack junior. L’application présente les projets, certificats et technologies, avec un espace d’administration protégé, un formulaire de contact et des commentaires publics modérés.
 
-[Voir le portfolio en ligne](https://mamynavalona-dev.vercel.app)
+[Voir le portfolio en ligne](https://portfolio-mamynavalonar-dev.vercel.app)
 
 ## Fonctionnalités
 
