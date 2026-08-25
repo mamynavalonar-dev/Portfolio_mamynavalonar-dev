@@ -252,7 +252,7 @@ export default function About({
             >
               {/* DOWNLOAD CV */}
               <a
-                href="https://drive.google.com/uc?export=download&id=11wSlZrl5GtR7JZ9Zb6N7u250Q3mjtaLU"
+                href="/api/cv/download"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ textDecoration: "none" }}

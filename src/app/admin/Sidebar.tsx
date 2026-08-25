@@ -8,6 +8,7 @@ import {
   MessageSquare,
   Inbox,
   Layers,
+  FileText,
   Menu,
   X,
   LogOut,
@@ -32,6 +33,11 @@ const menus = [
     name: "Certificats",
     icon: Award,
     path: "/admin/certificates",
+  },
+  {
+    name: "CV",
+    icon: FileText,
+    path: "/admin/cv",
   },
   {
     name: "Commentaires",
