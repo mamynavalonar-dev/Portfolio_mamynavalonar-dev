@@ -23,7 +23,7 @@ vi.mock("@supabase/ssr", () => ({
   }),
 }));
 
-import { proxy } from "../proxy";
+import { proxy } from "../src/proxy";
 
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");

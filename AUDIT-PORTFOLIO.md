@@ -2,7 +2,9 @@
 
 ## Périmètre et état réel
 
-Audit du code local Next.js et de la configuration Supabase du projet correspondant à la configuration locale. Les correctifs sont enregistrés dans le dossier de travail. La migration `20260913160413_public_request_limits.sql` a été appliquée à Supabase et vérifiée. Les projets, commentaires et fichiers existants ont été conservés. Aucun déploiement Vercel ni commit effectué.
+Audit du code Next.js et de la configuration Supabase du projet correspondant à la configuration locale. La migration `20260913160413_public_request_limits.sql` a été appliquée à Supabase et vérifiée. Les projets, commentaires et fichiers existants ont été conservés. Les correctifs ont été publiés via la [pull request nº 9](https://github.com/mamynavalonar-dev/Portfolio_mamynavalonar-dev/pull/9), fusionnée après réussite des contrôles GitHub. Vercel a confirmé le déploiement du commit `f0cfe8b` le 14 septembre.
+
+Contrôles après publication : HTTP 200, un seul h1, trois projets visibles, aucun débordement global et aucune erreur JavaScript détectée à 1440, 390 et 320 px ; captures dans `artifacts/audit-production/`. En-têtes de sécurité, sitemap contenant les projets et page projet accessibles. Un contrôle anonyme a révélé que `/admin/dashboard` ne redirigeait pas : le fichier `proxy.ts` à la racine était ignoré avec `src/app`. Il est déplacé vers `src/proxy.ts`, conformément à la [convention Next.js](https://nextjs.org/docs/app/api-reference/file-conventions/proxy). Ce complément doit être vérifié sur le déploiement suivant. Les autorisations des API et les politiques RLS constituent des protections distinctes ; aucune fuite de données privées n'est établie par le seul accès à la page.
 
 Après les premiers échecs de connexion, le site déployé a pu être contrôlé avec Edge à 1440, 390 et 320 px : HTTP 200, contenus présents, aucun débordement global détecté. Les captures et résultats figurent dans `artifacts/audit/`. Une erreur React d'hydratation a été observée sur le déploiement existant. Le code local synchronise désormais la lecture des préférences d'affichage entre serveur et navigateur. Les captures du site déployé précèdent les correctifs. Aucun score Lighthouse, mesure Core Web Vitals ou certification WCAG n'est annoncé.
 
@@ -51,7 +53,7 @@ Validation du 14 septembre : ESLint et TypeScript réussis. Les 30 tests des 7 f
 
 ## Travail restant, dans l'ordre
 
-1. Publier les changements du projet sur Vercel. La compilation est validée et la migration nécessaire est déjà appliquée : ne pas la rejouer.
+1. Publier et vérifier le complément déplaçant le proxy dans `src/`. Les autres correctifs sont déployés ; la migration est déjà appliquée et ne doit pas être rejouée.
 2. Après publication, contrôler le CV, la connexion avec le véritable compte administrateur, les envois de formulaire et les quotas depuis le site déployé. Aucun message réel n'a été envoyé pendant l'audit.
 3. Activer/configurer la protection contre les mots de passe compromis et le MFA avec le propriétaire du compte ; réconcilier l'historique des anciennes migrations.
 4. Effectuer une mesure Lighthouse/Core Web Vitals et un contrôle complet des contrastes sur le déploiement final.
