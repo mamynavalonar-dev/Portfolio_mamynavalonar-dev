@@ -1,4 +1,4 @@
-import Image, { type ImageLoaderProps, type ImageProps } from "next/image";
+import Image, { type ImageProps } from "next/image";
 
 type ResponsiveImageProps = Omit<
   ImageProps,
@@ -10,7 +10,24 @@ type ResponsiveImageProps = Omit<
   height?: number;
 };
 
-const identityLoader = ({ src }: ImageLoaderProps) => src;
+function canOptimizeImage(src: string): boolean {
+  if (src.startsWith("/") && !src.startsWith("//")) return true;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) return false;
+
+  try {
+    const imageUrl = new URL(src);
+    const storageUrl = new URL(supabaseUrl);
+    return (
+      (imageUrl.protocol === "https:" || imageUrl.protocol === "http:") &&
+      imageUrl.origin === storageUrl.origin &&
+      imageUrl.pathname.startsWith("/storage/v1/object/public/")
+    );
+  } catch {
+    return false;
+  }
+}
 
 export default function ResponsiveImage({
   src,
@@ -20,7 +37,7 @@ export default function ResponsiveImage({
   sizes = "(max-width: 768px) 100vw, 50vw",
   ...props
 }: ResponsiveImageProps) {
-  const bypassOptimization = /^(blob:|data:|https?:)/.test(src);
+  const bypassOptimization = !canOptimizeImage(src);
 
   return (
     <Image
@@ -30,7 +47,6 @@ export default function ResponsiveImage({
       width={width}
       height={height}
       sizes={sizes}
-      loader={bypassOptimization ? identityLoader : undefined}
       unoptimized={bypassOptimization}
     />
   );

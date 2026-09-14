@@ -1,5 +1,6 @@
 import { adminErrorResponse, requireAdminUser } from "@/lib/adminAuth";
 import { createSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { readBoundedFormData, RequestBodyError } from "@/lib/requestBody";
 import {
   CV_BUCKET,
   CV_MAX_BYTES,
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
   try {
     await requireAdminUser();
 
-    const formData = await request.formData();
+    const formData = await readBoundedFormData(request, CV_MAX_BYTES + 64_000);
     const file = formData.get("file");
 
     if (!(file instanceof File)) {
@@ -150,6 +151,9 @@ export async function POST(request: Request) {
       cv: toPublicCv(data),
     });
   } catch (error) {
+    if (error instanceof RequestBodyError) {
+      return noStoreJson({ ok: false, message: error.message }, error.status);
+    }
     return adminErrorResponse(error);
   }
 }

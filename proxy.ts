@@ -4,16 +4,19 @@ import type { NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  const response = NextResponse.next({ request });
+  let response = NextResponse.next({ request });
+  const redirect = (path: string) => {
+    const redirectResponse = NextResponse.redirect(new URL(path, request.url));
+    response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
+    return redirectResponse;
+  };
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
     if (pathname === "/admin/login") return response;
 
-    return NextResponse.redirect(
-      new URL("/admin/login?error=configuration", request.url),
-    );
+    return redirect("/admin/login?error=configuration");
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -22,6 +25,10 @@ export async function proxy(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        const previousCookies = response.cookies.getAll();
+        response = NextResponse.next({ request });
+        previousCookies.forEach((cookie) => response.cookies.set(cookie));
         cookiesToSet.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, options);
         });
@@ -36,7 +43,7 @@ export async function proxy(request: NextRequest) {
   if (!user) {
     if (pathname === "/admin/login") return response;
 
-    return NextResponse.redirect(new URL("/admin/login", request.url));
+    return redirect("/admin/login");
   }
 
   const { data: admin } = await supabase
@@ -48,13 +55,11 @@ export async function proxy(request: NextRequest) {
   if (!admin) {
     if (pathname === "/admin/login") return response;
 
-    return NextResponse.redirect(
-      new URL("/admin/login?error=forbidden", request.url),
-    );
+    return redirect("/admin/login?error=forbidden");
   }
 
   if (pathname === "/admin/login") {
-    return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+    return redirect("/admin/dashboard");
   }
 
   return response;

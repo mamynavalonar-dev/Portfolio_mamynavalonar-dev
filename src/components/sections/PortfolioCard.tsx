@@ -46,7 +46,7 @@ export default function PortfolioCard({
         )}
 
         {id && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/10 opacity-0 backdrop-blur-[1px] transition-all duration-300 group-hover:bg-black/55 group-hover:opacity-100">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/10 opacity-0 backdrop-blur-[1px] transition-all duration-300 group-hover:bg-black/55 group-hover:opacity-100 group-focus-within:bg-black/55 group-focus-within:opacity-100">
             <motion.button
               type="button"
               onClick={onDetailsClick}
@@ -81,7 +81,7 @@ export default function PortfolioCard({
             <ArrowUpRight size={14} />
           </a>
         ) : (
-          <div className="text-[13px] text-white/35">Aucun lien</div>
+          <div className="text-[13px] text-white/60">Démo indisponible</div>
         )}
 
         {id && (

@@ -62,13 +62,15 @@ export default function useComments() {
   };
 
   const likeComment = async (id: number) => {
-    if (localStorage.getItem(`liked-${id}`)) return;
+    try {
+      if (localStorage.getItem(`liked-${id}`)) return;
+    } catch { /* Le stockage navigateur est facultatif. */ }
 
     setError("");
 
     try {
       const likes = await likeCommentService(id);
-      localStorage.setItem(`liked-${id}`, "true");
+      try { localStorage.setItem(`liked-${id}`, "true"); } catch { /* Quota contrôlé côté serveur. */ }
       setComments((current) =>
         current.map((item) => (item.id === id ? { ...item, likes } : item)),
       );

@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import { createSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { readRequestBody, RequestBodyError } from "@/lib/requestBody";
 import {
   isValidEmail,
   normalizeContactString,
@@ -29,33 +30,10 @@ function json(
 }
 
 export async function POST(request: Request) {
-  const contentLength = Number(request.headers.get("content-length") || "0");
-
-  if (contentLength > MAX_BODY_BYTES) {
-    return json(
-      {
-        ok: false,
-        message: "Requête trop volumineuse.",
-      },
-      413,
-    );
-  }
-
   let payload: ContactPayload;
 
   try {
-    const rawBody = await request.text();
-
-    if (new TextEncoder().encode(rawBody).byteLength > MAX_BODY_BYTES) {
-      return json(
-        {
-          ok: false,
-          message: "Requête trop volumineuse.",
-        },
-        413,
-      );
-    }
-
+    const rawBody = new TextDecoder().decode(await readRequestBody(request, MAX_BODY_BYTES));
     const parsed = JSON.parse(rawBody) as unknown;
 
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -63,7 +41,10 @@ export async function POST(request: Request) {
     }
 
     payload = parsed as ContactPayload;
-  } catch {
+  } catch (error) {
+    if (error instanceof RequestBodyError) {
+      return json({ ok: false, message: error.message }, error.status);
+    }
     return json(
       {
         ok: false,

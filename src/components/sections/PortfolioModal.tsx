@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import useDialogFocus from "@/hooks/useDialogFocus";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -24,32 +25,11 @@ export default function PortfolioModal({
   onClose,
 }: PortfolioModalProps) {
   const isOpen = !!project;
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    const previousOverflow = document.body.style.overflow;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setActiveImageIndex(0);
-        onClose();
-      }
-    };
-
-    document.body.style.overflow = "hidden";
-    document.addEventListener("keydown", handleKeyDown);
-    closeButtonRef.current?.focus();
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
-      previouslyFocused?.focus();
-    };
-  }, [isOpen, onClose]);
+  const dialogRef = useDialogFocus(isOpen, () => {
+    setActiveImageIndex(0);
+    onClose();
+  });
 
   const tech = project ? toStringList(project.technologies) : [];
 
@@ -86,6 +66,8 @@ export default function PortfolioModal({
           className="fixed inset-0 z-[999] bg-black/80 backdrop-blur-md flex items-center justify-center px-4 py-5 sm:px-6"
         >
           <motion.div
+            ref={dialogRef}
+            tabIndex={-1}
             initial={{ opacity: 0, y: 28, scale: 0.965 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 18, scale: 0.97 }}
@@ -123,7 +105,6 @@ export default function PortfolioModal({
               </div>
 
               <button
-                ref={closeButtonRef}
                 type="button"
                 onClick={closeModal}
                 className="absolute top-7 right-7 sm:top-8 sm:right-8 w-10 h-10 rounded-full bg-black/70 border border-white/15 backdrop-blur-xl flex items-center justify-center text-white hover:bg-black/90 transition"
@@ -154,6 +135,7 @@ export default function PortfolioModal({
                           : "border-white/10 opacity-60 hover:opacity-100"
                       }`}
                       aria-label={`Afficher l'aperçu ${index + 1}`}
+                      aria-pressed={index === safeImageIndex}
                     >
                       <ResponsiveImage
                         src={image}
@@ -213,7 +195,7 @@ export default function PortfolioModal({
                     className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white text-black font-semibold text-sm hover:bg-white/90 transition"
                   >
                     <ExternalLink size={15} />
-                    Live Site
+                    Démo en ligne
                   </a>
                 ) : (
                   <div className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl border border-white/10 text-white/35 text-sm">

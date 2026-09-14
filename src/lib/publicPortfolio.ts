@@ -10,50 +10,55 @@ const emptyPortfolio: PublicPortfolioData = {
   certificates: [],
   techStacks: [],
 };
+const collectionNames = ["projects", "certificates", "techStacks"] as const;
 
 export async function fetchPublicPortfolio(): Promise<PublicPortfolioData> {
-  if (process.env.CI === "true") return emptyPortfolio;
+  if (process.env.PORTFOLIO_OFFLINE_BUILD === "true") return emptyPortfolio;
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!url || !anonKey) return emptyPortfolio;
+  if (!url || !anonKey) return { ...emptyPortfolio, unavailable: [...collectionNames] };
 
   const supabase = createClient(url, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
   try {
-    const [projectsResult, certificatesResult, techResult] = await Promise.all([
+    const results = await Promise.allSettled([
       supabase.from("projects").select("*").order("created_at", { ascending: true }),
       supabase.from("certificates").select("*").order("created_at", { ascending: true }),
       supabase.from("tech_stack").select("*").order("created_at", { ascending: true }),
     ]);
 
-    if (projectsResult.error || certificatesResult.error || techResult.error) {
-      console.error("Public portfolio server fetch failed.");
-      return emptyPortfolio;
-    }
+    const unavailable = collectionNames.filter((_, index) => {
+      const result = results[index];
+      return result.status === "rejected" || Boolean(result.value.error);
+    });
+    if (unavailable.length) console.error("Public portfolio collections unavailable:", unavailable.join(", "));
+    const [projectsResult, certificatesResult, techResult] = results;
 
     return {
-      projects: (projectsResult.data ?? []).map((project) =>
+      projects: (projectsResult.status === "fulfilled" && !projectsResult.value.error ? projectsResult.value.data ?? [] : []).map((project) =>
         normalizeProject(project),
       ),
-      certificates: certificatesResult.data ?? [],
-      techStacks: techResult.data ?? [],
+      certificates: certificatesResult.status === "fulfilled" && !certificatesResult.value.error ? certificatesResult.value.data ?? [] : [],
+      techStacks: techResult.status === "fulfilled" && !techResult.value.error ? techResult.value.data ?? [] : [],
+      ...(unavailable.length ? { unavailable } : {}),
     };
   } catch (error) {
     console.error("Public portfolio server fetch error:", error);
-    return emptyPortfolio;
+    return { ...emptyPortfolio, unavailable: [...collectionNames] };
   }
 }
 
 export const fetchPublicProject = cache(async (id: string) => {
-  if (process.env.CI === "true") return null;
+  if (process.env.PORTFOLIO_OFFLINE_BUILD === "true") return null;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) return null;
+  if (!url || !anonKey) throw new Error("Le service des projets est temporairement indisponible.");
 
   const supabase = createClient(url, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -64,6 +69,7 @@ export const fetchPublicProject = cache(async (id: string) => {
     .eq("id", id)
     .maybeSingle();
 
-  if (error || !data) return null;
+  if (error) throw new Error("Le projet ne peut pas être chargé pour le moment.");
+  if (!data) return null;
   return normalizeProject(data);
 });

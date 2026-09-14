@@ -30,6 +30,7 @@ export default function LoginPage() {
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (loading) return;
     setErrorMsg("");
     setSuccessMsg("");
 
@@ -39,6 +40,7 @@ export default function LoginPage() {
     }
 
     setLoading(true);
+    try {
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -65,6 +67,11 @@ export default function LoginPage() {
     setSuccessMsg("Connexion réussie, redirection...");
     router.replace("/admin/dashboard");
     router.refresh();
+    } catch {
+      setErrorMsg("Connexion impossible pour le moment. Vérifiez votre connexion puis réessayez.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -108,7 +115,7 @@ export default function LoginPage() {
           <form onSubmit={handleLogin}>
           {/* EMAIL */}
           <div className="mb-4">
-            <label className="text-sm text-white/50 mb-2 block">
+            <label htmlFor="admin-email" className="text-sm text-white/65 mb-2 block">
               Email
             </label>
 
@@ -119,6 +126,7 @@ export default function LoginPage() {
               />
 
               <input
+                id="admin-email"
                 type="email"
                 name="email"
                 autoComplete="email"
@@ -133,7 +141,7 @@ export default function LoginPage() {
 
           {/* PASSWORD */}
           <div className="mb-6">
-            <label className="text-sm text-white/50 mb-2 block">
+            <label htmlFor="admin-password" className="text-sm text-white/65 mb-2 block">
               Mot de passe
             </label>
 
@@ -144,6 +152,7 @@ export default function LoginPage() {
               />
 
               <input
+                id="admin-password"
                 type={showPassword ? "text" : "password"}
                 name="password"
                 autoComplete="current-password"
@@ -158,6 +167,8 @@ export default function LoginPage() {
 
               <button
                 type="button"
+                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                aria-pressed={showPassword}
                 onClick={() =>
                   setShowPassword(!showPassword)
                 }

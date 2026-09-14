@@ -1,14 +1,17 @@
 "use client";
 
-import GradientWaves from "@/components/background/GradientWaves";
+import dynamic from "next/dynamic";
+import useMediaQuery from "@/hooks/useMediaQuery";
+const GradientWaves = dynamic(() => import("@/components/background/GradientWaves"), { ssr: false });
 
 export default function AnimatedBackground() {
+  const animated = useMediaQuery("(min-width: 768px) and (prefers-reduced-motion: no-preference)");
   return (
     <div
       aria-hidden="true"
       className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-[#09090d]"
     >
-      <GradientWaves />
+      {animated ? <GradientWaves /> : <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,#251847_0%,#09090d_65%)]" />}
 
       <div className="absolute inset-0 bg-black/18" />
 

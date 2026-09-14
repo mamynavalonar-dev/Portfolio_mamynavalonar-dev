@@ -47,13 +47,14 @@ export default function CommentsSection() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    if (preview) URL.revokeObjectURL(preview)
     setImage(file)
     setPreview(URL.createObjectURL(file))
   }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!name.trim() || !comment.trim()) return
+    if (loading || !name.trim() || !comment.trim()) return
 
     const created = await addComment({
       name,
@@ -136,7 +137,7 @@ export default function CommentsSection() {
 
         <motion.label
           variants={itemVariants}
-          className="rounded-2xl border border-dashed border-white/15 bg-black/20 p-3 md:p-4 flex items-center gap-3 cursor-pointer"
+          className="rounded-2xl border border-dashed border-white/15 bg-black/20 p-3 md:p-4 flex items-center gap-3 cursor-pointer focus-within:ring-2 focus-within:ring-white"
         >
           <Upload size={16} />
 
@@ -145,7 +146,8 @@ export default function CommentsSection() {
           </span>
 
           <input
-            hidden
+            className="sr-only"
+            aria-label="Ajouter une image au commentaire"
             type="file"
             accept="image/jpeg,image/png,image/webp"
             onChange={handleImage}
@@ -234,7 +236,7 @@ export default function CommentsSection() {
                     {item.name?.charAt(0)}
                   </div>
 
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1 break-words">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <p className="text-sm font-medium">
                         {item.name}

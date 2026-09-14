@@ -74,21 +74,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
-      <head>
-        <link
-          rel="preload"
-          href="/assets/kartu.glb"
-          as="fetch"
-          crossOrigin="anonymous"
-          media="(min-width: 768px)"
-        />
-        <link
-          rel="preload"
-          href="/assets/bandd.png"
-          as="image"
-          media="(min-width: 768px)"
-        />
-      </head>
       <body>
         <a
           href="#main-content"
