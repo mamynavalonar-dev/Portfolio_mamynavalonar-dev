@@ -1,22 +1,30 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import {
   motion,
-  useReducedMotion,
   useScroll,
   useTransform,
 } from "framer-motion";
 import { ArrowDown, Circle } from "lucide-react";
 import TextType from "@/components/band/TextType";
 import ShinyText from "@/components/ui/ShinyText";
+import useMediaQuery from "@/hooks/useMediaQuery";
 
 const BandApp = dynamic(() => import("@/components/band/App"), {
   ssr: false,
 });
 
 const skills = ["Typescript", "React.js", "Tailwind"];
+const badgeMedia = "(min-width: 768px) and (prefers-reduced-motion: no-preference)";
+const subscribeBadgeMedia = (notify: () => void) => {
+  const media = window.matchMedia(badgeMedia);
+  media.addEventListener("change", notify);
+  return () => media.removeEventListener("change", notify);
+};
+const getBadgeMedia = () => window.matchMedia(badgeMedia).matches;
+const getServerBadgeMedia = () => false;
 
 export default function Hero({
   onBadgeReady,
@@ -25,7 +33,8 @@ export default function Hero({
   onBadgeReady?: () => void;
   startBadgeEntrance?: boolean;
 }) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const showBadge = useSyncExternalStore(subscribeBadgeMedia, getBadgeMedia, getServerBadgeMedia);
   const [isLanyardDragging, setIsLanyardDragging] = useState(false);
   const heroRef = useRef<HTMLElement | null>(null);
   const startAnim = true;
@@ -58,7 +67,7 @@ export default function Hero({
       id="home"
       className="relative isolate flex min-h-screen items-center justify-start overflow-visible px-6 md:pl-[120px] md:pr-[60px]"
     >
-      {!reducedMotion && (
+      {showBadge && (
         <div
           className={`pointer-events-none absolute inset-0 hidden overflow-visible md:block ${
             isLanyardDragging ? "z-[8]" : "z-[4]"
@@ -89,8 +98,8 @@ export default function Hero({
           </span>
         </motion.div>
 
-        <div>
-          <motion.h1
+        <h1>
+          <motion.span
             initial={false}
             animate={
               startAnim
@@ -114,9 +123,9 @@ export default function Hero({
               yoyo
               disabled={Boolean(reducedMotion)}
             />
-          </motion.h1>
+          </motion.span>
 
-          <motion.h1
+          <motion.span
             initial={false}
             animate={
               startAnim
@@ -128,7 +137,7 @@ export default function Hero({
               delay: 0.04,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="mb-6 text-[clamp(32px,6vw,62px)] font-extrabold leading-[1.05] tracking-[-0.03em]"
+            className="block mb-6 text-[clamp(32px,6vw,62px)] font-extrabold leading-[1.05] tracking-[-0.03em]"
           >
             <ShinyText
               text="Full Stack"
@@ -141,8 +150,8 @@ export default function Hero({
               yoyo
               disabled={Boolean(reducedMotion)}
             />
-          </motion.h1>
-        </div>
+          </motion.span>
+        </h1>
 
         <motion.div
           initial={false}

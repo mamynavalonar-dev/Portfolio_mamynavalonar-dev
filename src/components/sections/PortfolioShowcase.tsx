@@ -1,46 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
-import usePortfolio from "@/hooks/usePortfolio";
+import type usePortfolio from "@/hooks/usePortfolio";
+import useDialogFocus from "@/hooks/useDialogFocus";
 import PortfolioCard from "./PortfolioCard";
 import PortfolioModal from "./PortfolioModal";
 import { Project } from "@/types";
-import type { PublicPortfolioData } from "@/types";
 import ResponsiveImage from "@/components/ui/ResponsiveImage";
 
 const smoothEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 export default function PortfolioShowcase({
-  initialPortfolio,
+  portfolio,
 }: {
-  initialPortfolio?: PublicPortfolioData;
+  portfolio: ReturnType<typeof usePortfolio>;
 }) {
-  const { projects, certificates, techStacks, loading } = usePortfolio(initialPortfolio);
+  const { projects, certificates, techStacks, loading, error, reload } = portfolio;
 
   const [activeTab, setActiveTab] = useState("projects");
 
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const [previewImage, setPreviewImage] = useState("");
+  const [previewTitle, setPreviewTitle] = useState("");
+  const previewRef = useDialogFocus(previewOpen, () => setPreviewOpen(false));
 
   const [showAllProjects, setShowAllProjects] = useState(false);
 
   const [activeProject, setActiveProject] = useState<Project | null>(null);
 
   const displayedProjects = showAllProjects ? projects : projects.slice(0, 3);
-
-  useEffect(() => {
-    if (!previewOpen) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setPreviewOpen(false);
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [previewOpen]);
 
   return (
     <>
@@ -54,13 +45,15 @@ export default function PortfolioShowcase({
       <AnimatePresence>
         {previewOpen && (
           <motion.div
+            ref={previewRef}
+            tabIndex={-1}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[999] bg-black/90 backdrop-blur-md flex items-center justify-center px-6"
             role="dialog"
             aria-modal="true"
-            aria-label="Aperçu du certificat"
+            aria-label={`Aperçu du certificat : ${previewTitle}`}
           >
             <button
               type="button"
@@ -86,7 +79,7 @@ export default function PortfolioShowcase({
               }}
               transition={{ duration: 0.18 }}
               src={previewImage}
-              alt="Aperçu du certificat"
+              alt={`Certificat : ${previewTitle}`}
               className="max-w-[88vw] max-h-[88vh] rounded-3xl object-contain"
             />
           </motion.div>
@@ -104,21 +97,27 @@ export default function PortfolioShowcase({
           transition={{ duration: 0.28 }}
           className="text-center mb-8"
         >
-          <h1 className="text-3xl md:text-5xl font-bold mb-3">
+          <h2 className="text-3xl md:text-5xl font-bold mb-3">
             Vitrine de projets
-          </h1>
+          </h2>
 
           <p className="text-white/70 max-w-2xl mx-auto text-sm md:text-base">
-            Découvrez une sélection de projets à travers lesquels je mets en`n            pratique le développement Full Stack, la conception d&apos;interfaces,`n            la gestion des données, la sécurité et la résolution de problématiques`n            concrètes.
+            Découvrez une sélection de projets à travers lesquels je mets en
+            pratique le développement Full Stack, la conception d&apos;interfaces,
+            la gestion des données, la sécurité et la résolution de problématiques
+            concrètes.
           </p>
         </motion.div>
 
         {/* TAB */}
         <div className="flex justify-center mb-10">
-          <div className="w-full max-w-3xl rounded-full border border-white/10 bg-white/5 p-2 flex gap-2">
+          <div role="group" aria-label="Catégories du portfolio" className="w-full max-w-3xl rounded-full border border-white/10 bg-white/5 p-2 flex gap-1 sm:gap-2">
             {["projects", "certificates", "techstack"].map((tab) => (
               <button
                 key={tab}
+                type="button"
+                aria-pressed={activeTab === tab}
+                aria-controls="portfolio-results"
                 onClick={() => {
                   setActiveTab(tab);
 
@@ -126,7 +125,7 @@ export default function PortfolioShowcase({
                     setShowAllProjects(false);
                   }
                 }}
-                className={`flex-1 rounded-full py-3 text-sm transition-all duration-300 ${
+                className={`min-w-0 flex-1 rounded-full py-3 text-xs sm:text-sm transition-all duration-300 ${
                   activeTab === tab
                     ? "bg-white/10 text-white"
                     : "text-white/50 hover:text-white"
@@ -142,8 +141,25 @@ export default function PortfolioShowcase({
           </div>
         </div>
 
+        {error && (
+          <div className="mb-6 rounded-2xl border border-amber-300/25 bg-amber-300/5 p-4 text-sm text-amber-100">
+            <p role="status">{error}</p>
+            <button type="button" onClick={() => void reload()} disabled={loading} className="mt-3 rounded-lg border border-white/25 px-4 py-2 disabled:opacity-60">
+              {loading ? "Chargement…" : "Réessayer"}
+            </button>
+          </div>
+        )}
+        {loading && <p role="status" className="mb-6 text-center text-white/70">Chargement du portfolio…</p>}
+        {!loading && !error && (
+          (activeTab === "projects" && projects.length === 0) ||
+          (activeTab === "certificates" && certificates.length === 0) ||
+          (activeTab === "techstack" && techStacks.length === 0)
+        ) && <p role="status" className="mb-6 text-center text-white/70">Aucun élément publié dans cette catégorie pour le moment.</p>}
+
         <AnimatePresence mode="wait">
           <motion.div
+            id="portfolio-results"
+            aria-busy={loading}
             key={activeTab}
             initial={{ opacity: 0, y: 25 }}
             animate={{ opacity: 1, y: 0 }}
@@ -269,8 +285,10 @@ export default function PortfolioShowcase({
               <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6 px-1">
                 {!loading &&
                   certificates.map((item, i) => (
-                    <motion.div
+                    <motion.button
                       key={item.id}
+                      type="button"
+                      aria-label={`Agrandir le certificat : ${item.title}`}
                       initial={{
                         opacity: 0,
                         y: 25,
@@ -288,6 +306,7 @@ export default function PortfolioShowcase({
                       whileHover={{ y: -4 }}
                       onClick={() => {
                         setPreviewImage(item.image_url);
+                        setPreviewTitle(item.title);
                         setPreviewOpen(true);
                       }}
                       className="group cursor-pointer rounded-[26px] border border-white/10 bg-white/5 p-4"
@@ -302,10 +321,10 @@ export default function PortfolioShowcase({
                         />
                       </div>
 
-                      <h3 className="mt-4 text-[15px] font-semibold text-center text-white/90">
+                      <span className="block mt-4 text-[15px] font-semibold text-center text-white/90">
                         {item.title}
-                      </h3>
-                    </motion.div>
+                      </span>
+                    </motion.button>
                   ))}
               </div>
             )}
@@ -336,7 +355,7 @@ export default function PortfolioShowcase({
                           y: -5,
                           scale: 1.04,
                         }}
-                        className="group rounded-[24px] border border-white/10 bg-white/[0.04] flex flex-col items-center justify-center gap-3 h-[125px] w-[125px] mx-auto"
+                        className="group min-w-0 w-full max-w-[150px] rounded-[24px] border border-white/10 bg-white/[0.04] flex flex-col items-center justify-center gap-3 min-h-[125px] mx-auto"
                       >
                         <div className="relative flex items-center justify-center">
                           <div className="absolute w-[70px] h-[70px] rounded-full bg-white/20 blur-2xl opacity-0 group-hover:opacity-100 transition duration-500" />

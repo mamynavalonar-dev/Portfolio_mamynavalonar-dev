@@ -1,4 +1,5 @@
 'use client';
+import useMediaQuery from '@/hooks/useMediaQuery';
 
 import {
   ElementType,
@@ -52,6 +53,7 @@ const TextType = ({
   reverseMode = false,
   ...props
 }: TextTypeProps & React.HTMLAttributes<HTMLElement>) => {
+  const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const [displayedText, setDisplayedText] = useState('');
   const [currentCharIndex, setCurrentCharIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -92,7 +94,7 @@ const TextType = ({
   }, [startOnVisible]);
 
   useEffect(() => {
-    if (!isVisible) return;
+    if (!isVisible || reducedMotion || textArray.length === 0) return;
 
     let timeout: ReturnType<typeof setTimeout>;
 
@@ -171,11 +173,12 @@ const TextType = ({
     variableSpeed,
     onSentenceComplete,
     getRandomSpeed,
+    reducedMotion,
   ]);
 
   const shouldHideCursor =
     hideCursorWhileTyping &&
-    (currentCharIndex < textArray[currentTextIndex].length ||
+    (currentCharIndex < (textArray[currentTextIndex]?.length ?? 0) ||
       isDeleting);
 
   const content = createElement(
@@ -188,9 +191,9 @@ const TextType = ({
       className="inline"
       style={{ color: getCurrentTextColor() || 'inherit' }}
     >
-      {displayedText}
+      {reducedMotion ? textArray[0] : displayedText}
     </span>,
-    showCursor && (
+    showCursor && !reducedMotion && (
       <span
         className={`ml-1 inline-block opacity-100 ${
           shouldHideCursor ? 'hidden' : ''

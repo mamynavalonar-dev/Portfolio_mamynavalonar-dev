@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
+import useDialogFocus from '@/hooks/useDialogFocus'
 import { Project } from '@/types'
 import { toStringList } from '@/lib/projectFields'
 import {
@@ -29,13 +30,14 @@ export default function ProjectDetailClient({
 
   const [currentImage, setCurrentImage] = useState(0)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const dialogRef = useDialogFocus(previewOpen, () => setPreviewOpen(false))
 
   const tech = toStringList(project.technologies)
   const features = toStringList(project.key_features)
 
   const galleryImages =
-    project?.image_urls && Array.isArray(project.image_urls)
-      ? project.image_urls
+    project?.image_urls && Array.isArray(project.image_urls) && project.image_urls.some(Boolean)
+      ? project.image_urls.filter(Boolean)
       : project?.image_url
       ? [project.image_url]
       : []
@@ -53,15 +55,19 @@ export default function ProjectDetailClient({
   }
 
   const handleBack = () => {
-    sessionStorage.setItem('skipIntroOnce', 'true')
     router.push('/#portfolio')
   }
 
   return (
-    <>
+    <MotionConfig reducedMotion="user">
       <AnimatePresence>
         {previewOpen && (
           <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Images du projet ${project.title}`}
+            tabIndex={-1}
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -40 }}
@@ -72,6 +78,7 @@ export default function ProjectDetailClient({
             className="fixed inset-0 z-[999] bg-black/95 backdrop-blur-xl flex items-center justify-center"
           >
             <button
+              aria-label="Fermer l'aperçu"
               onClick={() => setPreviewOpen(false)}
               className="absolute top-6 right-6 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center"
             >
@@ -81,6 +88,7 @@ export default function ProjectDetailClient({
             {currentImage > 0 && (
               <button
                 onClick={prevImage}
+                aria-label="Image précédente"
                 className="absolute left-6 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center"
               >
                 <ChevronLeft size={20} />
@@ -104,6 +112,7 @@ export default function ProjectDetailClient({
             {currentImage < galleryImages.length - 1 && (
               <button
                 onClick={nextImage}
+                aria-label="Image suivante"
                 className="absolute right-6 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 flex items-center justify-center"
               >
                 <ChevronRight size={20} />
@@ -186,7 +195,7 @@ export default function ProjectDetailClient({
                 delay: 0.15,
                 ease: [0.22, 1, 0.36, 1],
               }}
-              className="text-[12px] leading-6 text-white/60 text-justify mb-7"
+              className="text-sm leading-7 text-white/75 mb-7"
             >
               {project.description}
             </motion.p>
@@ -248,6 +257,7 @@ export default function ProjectDetailClient({
                 <a
                   href={project.live_url}
                   target="_blank"
+                  rel="noopener noreferrer"
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br from-[#111] to-[#181818] border border-white/10 hover:bg-white/5 hover:border-white/20 transition-all duration-300 text-sm"
                 >
                   <ExternalLink size={14} />
@@ -264,6 +274,7 @@ export default function ProjectDetailClient({
                 <a
                   href={project.github_url}
                   target="_blank"
+                  rel="noopener noreferrer"
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br from-[#111] to-[#181818] border border-white/10 hover:bg-white/5 hover:border-white/20 transition-all duration-300 text-sm"
                 >
                   <GitBranch size={14} />
@@ -349,6 +360,15 @@ export default function ProjectDetailClient({
                     }}
                     src={galleryImages[currentImage]}
                     alt={`${project.title} — image ${currentImage + 1}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Agrandir l'image ${currentImage + 1} du projet ${project.title}`}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setPreviewOpen(true);
+                      }
+                    }}
                     onClick={() => setPreviewOpen(true)}
                     className="w-full h-[220px] md:h-[250px] object-cover cursor-pointer"
                   />
@@ -356,6 +376,7 @@ export default function ProjectDetailClient({
                   {currentImage > 0 && (
                     <button
                       onClick={prevImage}
+                      aria-label="Image précédente"
                       className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center hover:bg-black/80 transition-all duration-300"
                     >
                       <ChevronLeft size={16} />
@@ -365,6 +386,7 @@ export default function ProjectDetailClient({
                   {currentImage < galleryImages.length - 1 && (
                     <button
                       onClick={nextImage}
+                      aria-label="Image suivante"
                       className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center hover:bg-black/80 transition-all duration-300"
                     >
                       <ChevronRight size={16} />
@@ -377,6 +399,8 @@ export default function ProjectDetailClient({
                     {galleryImages.map((_: string, i: number) => (
                       <motion.button
                         key={i}
+                        aria-label={`Afficher l'image ${i + 1}`}
+                        aria-pressed={currentImage === i}
                         initial={{
                           opacity: 0,
                           x: i % 2 === 0 ? -10 : 10,
@@ -447,6 +471,6 @@ export default function ProjectDetailClient({
           </motion.div>
         </div>
       </motion.div>
-    </>
+    </MotionConfig>
   )
 }

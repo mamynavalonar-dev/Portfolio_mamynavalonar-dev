@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Project, Certificate, TechStack } from "@/types";
 import {
   fetchCertificates,
@@ -22,8 +22,13 @@ export default function usePortfolio(initialPortfolio?: PublicPortfolioData) {
   );
 
   const [loading, setLoading] = useState(!initialPortfolio);
+  const [error, setError] = useState(initialPortfolio?.unavailable?.length
+    ? "Certains contenus sont temporairement indisponibles."
+    : "");
+  const requestId = useRef(0);
 
   const loadPortfolio = useCallback(async (hydrateFromCache: boolean) => {
+    const currentRequest = ++requestId.current;
     if (hydrateFromCache) {
       try {
         const cachedProjects = sessionStorage.getItem("portfolioProjects");
@@ -32,22 +37,22 @@ export default function usePortfolio(initialPortfolio?: PublicPortfolioData) {
         );
         const cachedTechStacks = sessionStorage.getItem("portfolioTechStacks");
 
-        if (cachedProjects) {
+        if (cachedProjects && Array.isArray(JSON.parse(cachedProjects))) {
           const parsedProjects = JSON.parse(cachedProjects) as Record<
             string,
             unknown
           >[];
 
           setProjects(
-            parsedProjects.map((project) => normalizeProject(project)),
+            parsedProjects.filter((project) => project && typeof project === "object").map((project) => normalizeProject(project)),
           );
         }
 
-        if (cachedCertificates) {
+        if (cachedCertificates && Array.isArray(JSON.parse(cachedCertificates))) {
           setCertificates(JSON.parse(cachedCertificates));
         }
 
-        if (cachedTechStacks) {
+        if (cachedTechStacks && Array.isArray(JSON.parse(cachedTechStacks))) {
           setTechStacks(JSON.parse(cachedTechStacks));
         }
       } catch {
@@ -56,35 +61,31 @@ export default function usePortfolio(initialPortfolio?: PublicPortfolioData) {
     }
 
     try {
-      const [projectsData, certificatesData, techStacksData] =
-        await Promise.all([
+      const results = await Promise.allSettled([
           fetchProjects(),
           fetchCertificates(),
           fetchTechStacks(),
         ]);
 
-      setProjects(projectsData || []);
-      setCertificates(certificatesData || []);
-      setTechStacks(techStacksData || []);
+      if (currentRequest !== requestId.current) return;
+      const [projectsResult, certificatesResult, techResult] = results;
+      if (projectsResult.status === "fulfilled") setProjects(projectsResult.value);
+      if (certificatesResult.status === "fulfilled") setCertificates(certificatesResult.value);
+      if (techResult.status === "fulfilled") setTechStacks(techResult.value);
+      setError(results.some((result) => result.status === "rejected")
+        ? "Certains contenus ne peuvent pas être actualisés. Les contenus déjà chargés restent disponibles."
+        : "");
 
       try {
-        sessionStorage.setItem(
-          "portfolioProjects",
-          JSON.stringify(projectsData || []),
-        );
-        sessionStorage.setItem(
-          "portfolioCertificates",
-          JSON.stringify(certificatesData || []),
-        );
-        sessionStorage.setItem(
-          "portfolioTechStacks",
-          JSON.stringify(techStacksData || []),
-        );
+        const keys = ["portfolioProjects", "portfolioCertificates", "portfolioTechStacks"];
+        results.forEach((result, index) => {
+          if (result.status === "fulfilled") sessionStorage.setItem(keys[index], JSON.stringify(result.value));
+        });
       } catch {
         // L'interface reste fonctionnelle si le stockage navigateur est bloqué.
       }
     } finally {
-      setLoading(false);
+      if (currentRequest === requestId.current) setLoading(false);
     }
   }, []);
 
@@ -93,7 +94,10 @@ export default function usePortfolio(initialPortfolio?: PublicPortfolioData) {
       void loadPortfolio(!initialPortfolio);
     }, 0);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      requestId.current += 1;
+    };
   }, [initialPortfolio, loadPortfolio]);
 
   return {
@@ -101,5 +105,7 @@ export default function usePortfolio(initialPortfolio?: PublicPortfolioData) {
     certificates,
     techStacks,
     loading,
+    error,
+    reload: () => loadPortfolio(false),
   };
 }

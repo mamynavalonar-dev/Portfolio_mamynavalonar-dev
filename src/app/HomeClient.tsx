@@ -10,6 +10,7 @@ import PortfolioShowcase from "@/components/sections/PortfolioShowcase";
 import ContactSection from "@/components/sections/contact/ContactSection";
 import WelcomeScreen from "@/components/WelcomeScreen";
 import type { PublicPortfolioData } from "@/types";
+import usePortfolio from "@/hooks/usePortfolio";
 
 const INTRO_VISIBLE_MS = 700;
 const INTRO_MAX_WAIT_MS = 2000;
@@ -19,7 +20,8 @@ export default function HomeClient({
 }: {
   initialPortfolio: PublicPortfolioData;
 }) {
-  const [showWelcome, setShowWelcome] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(false);
+  const portfolio = usePortfolio(initialPortfolio);
   const [badgeEntranceActive, setBadgeEntranceActive] = useState(false);
   const badgeReadyRef = useRef(false);
   const introElapsedRef = useRef(false);
@@ -33,12 +35,16 @@ export default function HomeClient({
   }, []);
 
   useEffect(() => {
-    if (window.location.hash) {
-      const skipTimer = window.setTimeout(() => setShowWelcome(false), 0);
+    if (window.location.hash || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const skipTimer = window.setTimeout(() => {
+        setShowWelcome(false);
+        setBadgeEntranceActive(true);
+      }, 0);
       return () => window.clearTimeout(skipTimer);
     }
 
     window.scrollTo({ top: 0, behavior: "auto" });
+    const startTimer = window.setTimeout(() => setShowWelcome(true), 0);
 
     const requiresBadge =
       window.matchMedia("(min-width: 768px)").matches &&
@@ -61,6 +67,7 @@ export default function HomeClient({
     }, INTRO_MAX_WAIT_MS);
 
     return () => {
+      window.clearTimeout(startTimer);
       window.clearTimeout(minTimer);
       window.clearTimeout(maxTimer);
     };
@@ -81,10 +88,10 @@ export default function HomeClient({
             startBadgeEntrance={badgeEntranceActive}
           />
           <About
-            initialProjectCount={initialPortfolio.projects.length}
-            initialCertificateCount={initialPortfolio.certificates.length}
+            initialProjectCount={portfolio.projects.length}
+            initialCertificateCount={portfolio.certificates.length}
           />
-          <PortfolioShowcase initialPortfolio={initialPortfolio} />
+          <PortfolioShowcase portfolio={portfolio} />
           <ContactSection />
         </div>
 

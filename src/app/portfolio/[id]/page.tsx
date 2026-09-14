@@ -30,6 +30,12 @@ export async function generateMetadata({
       url: `/portfolio/${project.id}`,
       images: project.image_url ? [{ url: project.image_url }] : undefined,
     },
+    twitter: {
+      card: "summary_large_image",
+      title: project.title,
+      description,
+      images: project.image_url ? [project.image_url] : ["/opengraph-image"],
+    },
   };
 }
 

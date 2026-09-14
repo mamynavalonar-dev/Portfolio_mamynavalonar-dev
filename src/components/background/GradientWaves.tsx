@@ -131,11 +131,17 @@ export default function GradientWaves({
       "(prefers-reduced-motion: reduce)",
     ).matches;
 
-    const renderer = new THREE.WebGLRenderer({
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
       alpha: true,
       antialias: false,
       powerPreference: "low-power",
     });
+    } catch {
+      // Decorative background: keep the CSS fallback when WebGL is unavailable.
+      return undefined;
+    }
 
     renderer.setClearColor(0x000000, 0);
     renderer.setPixelRatio(mobile ? 0.68 : 0.86);

@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { createSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { requestIpHash, visitorIdentity } from "@/lib/requestIdentity";
+import { readBoundedFormData, RequestBodyError } from "@/lib/requestBody";
+import {
+  PublicRequestLimitError,
+  publicRequestLimitResponse,
+  reservePublicRequest,
+} from "@/lib/publicRequestLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -68,17 +74,14 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const contentLength = Number(request.headers.get("content-length") || "0");
-
-  if (contentLength > MAX_BODY_BYTES) {
-    return json({ ok: false, message: "Fichier ou requête trop volumineux." }, 413);
-  }
-
   let formData: FormData;
 
   try {
-    formData = await request.formData();
-  } catch {
+    formData = await readBoundedFormData(request, MAX_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof RequestBodyError) {
+      return json({ ok: false, message: error.message }, error.status);
+    }
     return json({ ok: false, message: "Requête invalide." }, 400);
   }
 
@@ -117,6 +120,15 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Comments API configuration error:", error);
     return json({ ok: false, message: "Service non configuré." }, 503);
+  }
+
+  // Reserve an attempt before uploading. Failed uploads also consume the quota.
+  try {
+    await reservePublicRequest(supabaseAdmin, request, "comment");
+  } catch (error) {
+    if (error instanceof PublicRequestLimitError) return publicRequestLimitResponse();
+    console.error("Comment request limit error:", error);
+    return json({ ok: false, message: "Service temporairement indisponible." }, 503);
   }
 
   let imageUrl: string | null = null;

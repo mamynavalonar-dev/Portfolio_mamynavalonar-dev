@@ -32,7 +32,7 @@ export default function ContactSection() {
         }}
         className="text-center mb-12 sm:mb-14 lg:mb-16"
       >
-        <motion.h1
+        <motion.h2
           initial={{ opacity: 0, y: 28 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={viewport}
@@ -43,7 +43,7 @@ export default function ContactSection() {
           className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4"
         >
           Contact
-        </motion.h1>
+        </motion.h2>
 
         <motion.p
           initial={{ opacity: 0, y: 22 }}

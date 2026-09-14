@@ -167,7 +167,7 @@ export default function About({
             </motion.div>
 
             <motion.div variants={fadeUp}>
-              <div
+              <h2
                 style={{
                   fontSize: isMobile ? 32 : "clamp(32px,5vw,46px)",
                   fontWeight: 800,
@@ -175,9 +175,9 @@ export default function About({
                   color: "var(--text-primary)",
                 }}
               >
-                <div>RAKOTONIAINA</div>
-                <div>Mamy Navalona Antonio</div>
-              </div>
+                <span className="block">RAKOTONIAINA</span>
+                <span className="block">Mamy Navalona Antonio</span>
+              </h2>
             </motion.div>
 
             <motion.p
@@ -255,10 +255,8 @@ export default function About({
                 href="/api/cv/download"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ textDecoration: "none" }}
-              >
-                <button
                   style={{
+                    textDecoration: "none",
                     display: "flex",
                     alignItems: "center",
                     gap: 6,
@@ -284,7 +282,6 @@ export default function About({
                 >
                   <FileText size={14} />
                   Télécharger le CV
-                </button>
               </a>
 
               {/* VIEW PROJECTS */}
@@ -373,7 +370,6 @@ export default function About({
                 borderRadius: 16,
                 border: "1px solid var(--border)",
                 background: "var(--bg-card)",
-                cursor: "pointer",
               }}
             >
               <div
@@ -412,17 +408,23 @@ export default function About({
                 {item.title}
               </div>
 
-              <div
-                onClick={scrollToPortfolio}
+              <a
+                href="#portfolio"
+                aria-label={`Voir le portfolio : ${item.title.toLowerCase()}`}
                 style={{
                   position: "absolute",
-                  bottom: 14,
-                  right: 14,
+                  bottom: 5,
+                  right: 5,
+                  width: 36,
+                  height: 36,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   cursor: "pointer",
                 }}
               >
                 <ArrowUpRight size={15} />
-              </div>
+              </a>
             </motion.div>
           ))}
         </motion.div>

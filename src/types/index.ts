@@ -29,6 +29,7 @@ export interface PublicPortfolioData {
   projects: Project[];
   certificates: Certificate[];
   techStacks: TechStack[];
+  unavailable?: Array<"projects" | "certificates" | "techStacks">;
 }
 
 export interface CommentReply {
