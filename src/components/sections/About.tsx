@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, useReducedMotion, Variants } from "framer-motion";
 import { Code, Award, Globe, FileText, ArrowUpRight } from "lucide-react";
 import ProfileCard from "@/components/ui/ProfileCard";
+import styles from "./About.module.css";
 
 /* ================== ANIMATION ================== */
 
@@ -151,6 +152,7 @@ export default function About({
             style={{
               maxWidth: "600px",
               width: "100%",
+              minWidth: 0,
             }}
           >
             <motion.div variants={fadeUp} style={{ marginBottom: 16 }}>
@@ -168,8 +170,8 @@ export default function About({
 
             <motion.div variants={fadeUp}>
               <h2
+                className={styles.name}
                 style={{
-                  fontSize: isMobile ? 32 : "clamp(32px,5vw,46px)",
                   fontWeight: 800,
                   lineHeight: 1.03,
                   color: "var(--text-primary)",

@@ -1,0 +1,10 @@
+.name {
+  font-size: clamp(32px, 5vw, 46px);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 767px) {
+  .name {
+    font-size: clamp(1.25rem, 6.3vw, 2rem);
+  }
+}
