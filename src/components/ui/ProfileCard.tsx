@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useEffect, useRef, useCallback, useMemo } from "react";
+import useMediaQuery from "@/hooks/useMediaQuery";
 import ResponsiveImage from "@/components/ui/ResponsiveImage";
+import useElementActivity from "@/hooks/useElementActivity";
 
 const DEFAULT_INNER_GRADIENT =
   "linear-gradient(145deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 100%)";
@@ -88,15 +90,19 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
   showUserInfo = true,
   onContactClick,
 }) => {
+  const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const wrapRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
+  const elementActive = useElementActivity(wrapRef);
+  const initialTiltDone = useRef(false);
+  const dimensions = useRef({ width: 1, height: 1 });
 
   const enterTimerRef = useRef<number | null>(null);
   const leaveRafRef = useRef<number | null>(null);
 
   const tiltEngine = useMemo<TiltEngine | null>(() => {
-    if (!enableTilt) return null;
-    if (typeof window === "undefined") return null;
+    if (!enableTilt || reducedMotion || !elementActive) return null;
+    if (typeof window === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
 
     let rafId: number | null = null;
     let running = false;
@@ -116,8 +122,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
       const wrap = wrapRef.current;
       if (!shell || !wrap) return;
 
-      const width = shell.clientWidth || 1;
-      const height = shell.clientHeight || 1;
+      const { width, height } = dimensions.current;
 
       const percentX = clamp((100 / width) * x);
       const percentY = clamp((100 / height) * y);
@@ -192,7 +197,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
       toCenter(): void {
         const shell = shellRef.current;
         if (!shell) return;
-        this.setTarget(shell.clientWidth / 2, shell.clientHeight / 2);
+        this.setTarget(dimensions.current.width / 2, dimensions.current.height / 2);
       },
       beginInitial(durationMs: number): void {
         initialUntil = performance.now() + durationMs;
@@ -208,7 +213,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
         lastTs = 0;
       },
     };
-  }, [enableTilt]);
+  }, [enableTilt, reducedMotion, elementActive]);
 
   const getOffsets = (
     evt: PointerEvent,
@@ -297,7 +302,13 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
     if (!enableTilt || !tiltEngine) return;
 
     const shell = shellRef.current;
+    const wrap = wrapRef.current;
     if (!shell) return;
+
+    const measure = () => { dimensions.current = { width: shell.clientWidth || 1, height: shell.clientHeight || 1 }; };
+    measure();
+    const resizeObserver = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(measure);
+    resizeObserver?.observe(shell);
 
     const pointerMoveHandler = handlePointerMove as EventListener;
     const pointerEnterHandler = handlePointerEnter as EventListener;
@@ -317,7 +328,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
         anyMotion
           .requestPermission()
           .then((state: string) => {
-            if (state === "granted") {
+            if (state === "granted" && active) {
               window.addEventListener(
                 "deviceorientation",
                 deviceOrientationHandler,
@@ -329,16 +340,22 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
         window.addEventListener("deviceorientation", deviceOrientationHandler);
       }
     };
+    let active = true;
     shell.addEventListener("click", handleClick);
 
-    const initialX =
-      (shell.clientWidth || 0) - ANIMATION_CONFIG.INITIAL_X_OFFSET;
-    const initialY = ANIMATION_CONFIG.INITIAL_Y_OFFSET;
-    tiltEngine.setImmediate(initialX, initialY);
-    tiltEngine.toCenter();
-    tiltEngine.beginInitial(ANIMATION_CONFIG.INITIAL_DURATION);
+    if (!initialTiltDone.current) {
+      initialTiltDone.current = true;
+      const initialX = dimensions.current.width - ANIMATION_CONFIG.INITIAL_X_OFFSET;
+      tiltEngine.setImmediate(initialX, ANIMATION_CONFIG.INITIAL_Y_OFFSET);
+      tiltEngine.toCenter();
+      tiltEngine.beginInitial(ANIMATION_CONFIG.INITIAL_DURATION);
+    } else {
+      tiltEngine.setImmediate(dimensions.current.width / 2, dimensions.current.height / 2);
+    }
 
     return () => {
+      active = false;
+      resizeObserver?.disconnect();
       shell.removeEventListener("pointerenter", pointerEnterHandler);
       shell.removeEventListener("pointermove", pointerMoveHandler);
       shell.removeEventListener("pointerleave", pointerLeaveHandler);
@@ -347,7 +364,8 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
       if (enterTimerRef.current) window.clearTimeout(enterTimerRef.current);
       if (leaveRafRef.current) cancelAnimationFrame(leaveRafRef.current);
       tiltEngine.cancel();
-      shell.classList.remove("entering");
+      shell.classList.remove("entering", "active");
+      if (wrap) for (const [key, value] of Object.entries({ "--pointer-x": "50%", "--pointer-y": "50%", "--pointer-from-center": "0", "--pointer-from-top": "0.5", "--pointer-from-left": "0.5", "--rotate-x": "0deg", "--rotate-y": "0deg" })) wrap.style.setProperty(key, value);
     };
   }, [
     enableTilt,
@@ -462,7 +480,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
   return (
     <div
       ref={wrapRef}
-      className={`relative touch-none w-full max-w-[320px] ${className}`.trim()}
+      className={`relative ${enableMobileTilt ? "touch-none" : "touch-pan-y"} w-full max-w-[320px] ${className}`.trim()}
       style={{
         perspective: "500px",
         transform: "translate3d(0, 0, 0.1px)",
@@ -542,9 +560,11 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
             >
               <ResponsiveImage
                 className="w-full absolute left-1/2 bottom-[-1px] will-change-transform transition-transform duration-[120ms] ease-out object-cover"
+                sizes="320px"
                 src={avatarUrl}
                 alt={`Photo de ${name}`}
                 loading="lazy"
+                fetchPriority="low"
                 style={{
                   height: "100%",
                   transformOrigin: "50% 100%",
@@ -574,12 +594,14 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
                       style={{ width: "38px", height: "38px" }}
                     >
                       <ResponsiveImage
+                        sizes="38px"
                         width={76}
                         height={76}
                         className="w-full h-full object-cover rounded-full"
                         src={miniAvatarUrl || avatarUrl}
                         alt={`Mini photo de ${name}`}
                         loading="lazy"
+                        fetchPriority="low"
                         style={{
                           display: "block",
                           borderRadius: "50%",

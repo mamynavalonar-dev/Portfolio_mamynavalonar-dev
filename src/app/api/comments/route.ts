@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { requestIpHash, visitorIdentity } from "@/lib/requestIdentity";
+import { requestIpHash } from "@/lib/requestIdentity";
 import { readBoundedFormData, RequestBodyError } from "@/lib/requestBody";
 import {
   PublicRequestLimitError,
@@ -49,9 +49,8 @@ function hasValidImageSignature(bytes: Uint8Array, mimeType: string) {
   return false;
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const identity = visitorIdentity(request);
     const supabaseAdmin = createSupabaseAdmin();
     const { data, error } = await supabaseAdmin
       .from("comments")
@@ -61,9 +60,9 @@ export async function GET(request: Request) {
       .limit(100);
 
     if (error) throw error;
-    const response = json({ ok: true, comments: data ?? [] });
-    if (identity.cookie) response.headers.append("Set-Cookie", identity.cookie);
-    return response;
+    // Une lecture publique n'a pas besoin de créer l'identité d'un vote.
+    // Le premier vote l'établit lui-même, sans concurrence avec cette réponse.
+    return json({ ok: true, comments: data ?? [] });
   } catch (error) {
     console.error("Comments API read error:", error);
     return json(
@@ -159,7 +158,11 @@ export async function POST(request: Request) {
 
     if (error) {
       if (error.message.includes("COMMENT_RATE_LIMIT")) {
-        if (imagePath) await supabaseAdmin.storage.from("comments").remove([imagePath]);
+        // Le refus SQL explicite confirme que ce commentaire n'a pas été créé.
+        if (imagePath) {
+          try { await supabaseAdmin.storage.from("comments").remove([imagePath]); }
+          catch { console.warn("Nettoyage de l'image du commentaire refusé indisponible."); }
+        }
         return json(
           { ok: false, message: "Trop de commentaires envoyés. Réessayez plus tard." },
           429,
@@ -170,9 +173,11 @@ export async function POST(request: Request) {
     }
 
     const created = Array.isArray(data) ? data[0] : data;
+    if (!created || !Number.isSafeInteger(created.id) || created.id < 1) throw new Error("Confirmation du commentaire absente.");
     return json({ ok: true, comment: created }, 201);
   } catch (error) {
-    if (imagePath) await supabaseAdmin.storage.from("comments").remove([imagePath]);
+    // Une erreur de transport ne confirme pas l'annulation de la transaction.
+    // Conserver l'image évite de casser un commentaire effectivement enregistré.
     console.error("Comment creation error:", error);
     return json({ ok: false, message: "Impossible de publier le commentaire." }, 500);
   }

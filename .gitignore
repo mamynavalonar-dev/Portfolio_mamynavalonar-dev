@@ -25,3 +25,35 @@ pnpm-debug.log*
 
 # Hosting
 .vercel/
+
+# Résultats locaux et anciens paquets de correctifs
+/artifacts/
+/correctif-*.mjs
+/correctifs-*.mjs
+/ajouts-*.mjs
+/diagnostic-*.mjs
+/exporter-*.mjs
+/restaurer-*.mjs
+/correctif-*.zip
+/correctifs-*.zip
+/ajouts-*.zip
+/diagnostic-*.zip
+/sources-audit-portfolio-*.json
+/sources-fluidite-*.json
+/AJOUTS-PORTFOLIO-2026-10-13.md
+/ANALYSE-DES-RESULTATS.md
+/AUDIT-PORTFOLIO.md
+/BILAN-AUDIT.md
+/BILAN.md
+/CORRECTIFS-2026-10-13.md
+/CORRECTIFS-FLUIDITE-MOBILE-RESEAUX.md
+/CORRECTIFS-SACCADES-CACHE-2026-10-14.md
+/FICHIERS-MODIFIES.json
+/LISEZ-MOI.md
+/LISEZ-MOI.txt
+/VERIFICATIONS-2026-10-14.json
+/VERIFICATIONS.json
+/verification-supabase-lecture-seule.sql
+/20261013120000_portfolio_services_and_journey.sql
+/20261013163000_portfolio_social_links.sql
+/20261015120000_extend_social_platforms.sql

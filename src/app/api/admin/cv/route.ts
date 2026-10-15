@@ -1,5 +1,6 @@
 import { adminErrorResponse, requireAdminUser } from "@/lib/adminAuth";
 import { createSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { isSameOriginRequest } from "@/lib/sameOrigin";
 import { readBoundedFormData, RequestBodyError } from "@/lib/requestBody";
 import {
   CV_BUCKET,
@@ -62,6 +63,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    if (!isSameOriginRequest(request)) return noStoreJson({ ok: false, message: "Origine refusée." }, 403);
     await requireAdminUser();
 
     const formData = await readBoundedFormData(request, CV_MAX_BYTES + 64_000);
@@ -135,12 +137,13 @@ export async function POST(request: Request) {
       .select("file_name,file_size,storage_path,updated_at")
       .single();
 
-    if (updateError) {
-      console.error("Admin CV metadata update error:", updateError.message);
-      await supabaseAdmin.storage.from(CV_BUCKET).remove([storagePath]);
+    if (updateError || !data) {
+      console.error("Admin CV metadata update error:", updateError?.code ?? "confirmation absente");
+      // La réponse peut être perdue après validation de la transaction. Le PDF
+      // importé est conservé pour ne pas casser un CV potentiellement activé.
 
       return noStoreJson(
-        { ok: false, message: "Impossible d'activer le nouveau CV." },
+        { ok: false, message: "L’activation du nouveau CV n’a pas été confirmée. Actualisez son état avant de réessayer." },
         500,
       );
     }

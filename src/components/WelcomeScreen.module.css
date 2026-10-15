@@ -1,0 +1,18 @@
+.content { display: flex; width: 100%; max-width: 360px; flex-direction: column; align-items: center; gap: 16px; text-align: center; animation: intro-content .22s cubic-bezier(.22, 1, .36, 1) both; }
+.icon { animation: intro-icon .28s cubic-bezier(.22, 1, .36, 1) both; animation-delay: calc(.03s + var(--intro-index) * .055s); }
+.left { animation: intro-left .28s cubic-bezier(.22, 1, .36, 1) .13s both; }
+.right { animation: intro-right .28s cubic-bezier(.22, 1, .36, 1) .18s both; }
+.title { animation: intro-title .3s cubic-bezier(.22, 1, .36, 1) .24s both; }
+.address { animation: intro-address .24s cubic-bezier(.22, 1, .36, 1) .32s both; }
+.bar { animation: intro-bar .26s cubic-bezier(.22, 1, .36, 1) .39s both; }
+@keyframes intro-content { from { opacity: 0; transform: scale(.985); } to { opacity: 1; transform: scale(1); } }
+@keyframes intro-icon { 0% { opacity: 0; transform: translateY(28px) scale(.35) rotate(-110deg); } 55% { opacity: 1; transform: translateY(-3px) scale(1) rotate(5deg); } 80% { transform: translateY(0) scale(1) rotate(-3deg); } 100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); } }
+@keyframes intro-left { from { opacity: 0; transform: translateX(-34px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes intro-right { from { opacity: 0; transform: translateX(34px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes intro-title { from { opacity: 0; transform: translateY(22px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes intro-address { from { opacity: 0; transform: translateY(-18px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes intro-bar { from { opacity: .4; transform: scaleX(0); } to { opacity: 1; transform: scaleX(1); } }
+[data-intro-started='false'] .content, [data-intro-started='false'] .icon, [data-intro-started='false'] .left, [data-intro-started='false'] .right, [data-intro-started='false'] .title, [data-intro-started='false'] .address, [data-intro-started='false'] .bar { animation-play-state: paused; }
+[data-intro-exiting='true'] .content { animation: intro-exit .24s ease-in both; }
+@keyframes intro-exit { to { opacity: .92; transform: scale(1.01); } }
+@media (prefers-reduced-motion: reduce) { .content, .icon, .left, .right, .title, .address, .bar { animation: none; } }

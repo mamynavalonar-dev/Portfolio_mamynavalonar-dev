@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import useAdminCachedState from "@/hooks/useAdminCachedState";
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Sidebar from "@/app/admin/Sidebar";
 import { Plus } from "lucide-react";
 import AddProjectModal from "./AddProjectModal";
 import { supabase } from "@/lib/supabase";
@@ -14,15 +15,22 @@ export default function ProjectsPage() {
   const router = useRouter();
 
   const [open, setOpen] = useState(false);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [projects, setProjects, hasSnapshot] = useAdminCachedState<Project[]>("projects", []);
+  const [loading, setLoading] = useState(() => !hasSnapshot());
+  const [readError, setReadError] = useState("");
+  const readVersion = useRef(0);
 
-    const fetchProjects = useCallback(async () => {
+  const fetchProjects = useCallback(async () => {
+    const version = ++readVersion.current;
+    try {
     const { data, error } = await supabase
       .from("projects")
       .select("*");
 
-    if (!error && data) {
+    if (error) throw error;
+    if (version !== readVersion.current) return;
+    if (data) {
+      setReadError("");
       const sortedProjects = data.map((project) => normalizeProject(project)).sort(
         (a, b) =>
           new Date(a.created_at).getTime() -
@@ -32,9 +40,10 @@ export default function ProjectsPage() {
       setProjects(sortedProjects);
     }
 
-    setLoading(false);
+    } catch { if (version === readVersion.current) setReadError("Lecture indisponible. Les projets déjà chargés sont conservés."); }
+    finally { if (version === readVersion.current) setLoading(false); }
   
-  }, []);
+  }, [setProjects]);
 
 useEffect(() => {
     const timer = setTimeout(() => {
@@ -58,14 +67,17 @@ useEffect(() => {
 
     return () => {
       clearTimeout(timer);
+      readVersion.current += 1;
       supabase.removeChannel(channel);
     };
   }, [fetchProjects]);
 
 
   const handleAdd = (newProject: Project) => {
+    readVersion.current += 1;
+    setLoading(false);
     setProjects((prev) => {
-      const updated = [...prev, newProject];
+      const updated = [...prev.filter((item) => item.id !== newProject.id), newProject];
 
       return updated.sort(
         (a, b) =>
@@ -77,10 +89,6 @@ useEffect(() => {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white overflow-hidden">
-      {/* SIDEBAR */}
-      <div className="fixed left-0 top-0 h-screen z-40">
-        <Sidebar />
-      </div>
 
       {/* MAIN */}
       <main className="lg:ml-[250px] pt-[100px] lg:pt-0 min-h-screen flex flex-col">
@@ -106,6 +114,7 @@ useEffect(() => {
             </button>
           </div>
 
+          {readError && <p role="alert" className="mb-4 text-sm text-amber-200">{readError} <button type="button" onClick={() => void fetchProjects()} className="underline">Réessayer</button></p>}
           {/* GRID */}
           {loading ? (
             <div className="text-white/40 text-sm">

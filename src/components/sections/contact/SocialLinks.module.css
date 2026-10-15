@@ -1,0 +1,6 @@
+.container { container: social-links / inline-size; }
+.links { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.featured { grid-column: 1 / -1; }
+@container social-links (min-width: 560px) {
+  .links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

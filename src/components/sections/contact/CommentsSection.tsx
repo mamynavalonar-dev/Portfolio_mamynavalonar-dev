@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence, Variants } from 'framer-motion'
 import { Upload, Heart, Pin } from 'lucide-react'
 import useComments from '@/hooks/useComments'
+import { COMMENT_IMAGE_SIZES } from '@/lib/imageSizes'
 import ResponsiveImage from '@/components/ui/ResponsiveImage'
 
 const smoothEase: [number, number, number, number] = [0.22, 1, 0.36, 1]
@@ -41,13 +42,16 @@ export default function CommentsSection() {
   const [image, setImage] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
 
+  useEffect(() => () => {
+    if (preview) URL.revokeObjectURL(preview)
+  }, [preview])
+
   const handleImage = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (preview) URL.revokeObjectURL(preview)
     setImage(file)
     setPreview(URL.createObjectURL(file))
   }
@@ -64,7 +68,6 @@ export default function CommentsSection() {
 
     if (!created) return
 
-    if (preview) URL.revokeObjectURL(preview)
     setName('')
     setComment('')
     setImage(null)
@@ -73,7 +76,7 @@ export default function CommentsSection() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: 40 }}
+      initial={false}
       whileInView={{ opacity: 1, x: 0 }}
       transition={{
         duration: 0.25,
@@ -89,14 +92,14 @@ export default function CommentsSection() {
         </h3>
 
         <p className="text-xs md:text-sm text-white/40">
-          Laissez-moi vos impressions ici
+          Votre nom, votre commentaire et votre image seront publics. Évitez les informations personnelles sensibles.
         </p>
       </div>
 
       {/* FORM */}
       <motion.form
         variants={containerVariants}
-        initial="hidden"
+        initial={false}
         whileInView="show"
         viewport={{ once: true }}
         onSubmit={handleSubmit}
@@ -166,7 +169,7 @@ export default function CommentsSection() {
         <AnimatePresence>
           {preview && (
             <motion.img
-              initial={{ opacity: 0 }}
+              initial={false}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               src={preview}
@@ -191,7 +194,7 @@ export default function CommentsSection() {
       {/* COMMENTS LIST */}
       <motion.div
         variants={containerVariants}
-        initial="hidden"
+        initial={false}
         whileInView="show"
         viewport={{ once: true }}
         className="rounded-[24px] md:rounded-[28px] border border-white/10 bg-black/20 p-3 h-[320px] md:h-[420px] overflow-y-auto custom-scroll"
@@ -202,11 +205,7 @@ export default function CommentsSection() {
               <motion.div
                 key={item.id || i}
                 layout
-                initial={{
-                  opacity: 0,
-                  y: 18,
-                  scale: 0.96,
-                }}
+                initial={false}
                 animate={{
                   opacity: 1,
                   y: 0,
@@ -256,6 +255,7 @@ export default function CommentsSection() {
 
                     {item.image_url && (
                       <ResponsiveImage
+                        sizes={COMMENT_IMAGE_SIZES}
                         src={item.image_url}
                         alt="Commentaire"
                         className="mt-3 rounded-xl w-full max-h-48 md:max-h-56 object-cover border border-white/10"

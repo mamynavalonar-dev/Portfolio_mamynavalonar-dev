@@ -1,69 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Upload, X } from "lucide-react";
 import { Project } from "@/types";
 import { normalizeProject, toStringList } from "@/lib/projectFields";
 import ResponsiveImage from "@/components/ui/ResponsiveImage";
+import useDialogFocus from "@/hooks/useDialogFocus";
+import { createAdminRecord } from "@/lib/adminCreate";
+import { PROJECT_PUBLIC_COLUMNS } from "@/lib/publicFields";
 
-const MAX_PROJECT_IMAGE_DIMENSION = 1920;
-const PROJECT_IMAGE_QUALITY = 0.9;
-
-async function optimizeProjectImage(file: File): Promise<File> {
-  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-    return file;
-  }
-
-  try {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(
-      1,
-      MAX_PROJECT_IMAGE_DIMENSION / Math.max(bitmap.width, bitmap.height),
-    );
-
-    const width = Math.max(1, Math.round(bitmap.width * scale));
-    const height = Math.max(1, Math.round(bitmap.height * scale));
-
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-
-    const context = canvas.getContext("2d");
-    if (!context) {
-      bitmap.close();
-      return file;
-    }
-
-    context.drawImage(bitmap, 0, 0, width, height);
-    bitmap.close();
-
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, "image/webp", PROJECT_IMAGE_QUALITY);
-    });
-
-    if (!blob || blob.size >= file.size) return file;
-
-    const baseName = file.name.replace(/\.[^.]+$/, "");
-
-    return new File([blob], `${baseName}.webp`, {
-      type: "image/webp",
-      lastModified: Date.now(),
-    });
-  } catch {
-    return file;
-  }
-}
-
-function createStoragePath(file: File, index: number) {
-  const safeName = file.name
-    .normalize("NFKD")
-    .replace(/[^\w.-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-
-  return `${Date.now()}-${index}-${crypto.randomUUID()}-${safeName}`;
-}
+import { mapWithConcurrency } from "@/lib/mapWithConcurrency";
+import { revalidatePortfolio } from "@/lib/revalidatePortfolio";
+import { createProjectImagePath as createStoragePath, optimizeProjectImage } from "@/lib/projectImages";
 
 export default function AddProjectModal({
   isOpen,
@@ -86,12 +35,25 @@ export default function AddProjectModal({
 
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const savingRef = useRef(false);
+  const creationId = useRef<string | null>(null);
+  const uploadedImages = useRef(new Map<File, { path: string; publicUrl: string }>());
+  const dialogRef = useDialogFocus(isOpen, () => { if (!savingRef.current) onClose(); });
+
+  const ownedPreviews = useRef(new Set<string>());
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    ownedPreviews.current.forEach((url) => URL.revokeObjectURL(url));
+    ownedPreviews.current.clear();
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+  }, []);
 
   if (!isOpen) return null;
 
   const showToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 2500);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2500);
   };
 
   const removeImage = (index: number) => {
@@ -102,6 +64,7 @@ export default function AddProjectModal({
 
       if (removedPreview?.startsWith("blob:")) {
         URL.revokeObjectURL(removedPreview);
+        ownedPreviews.current.delete(removedPreview);
       }
 
       return prev.filter((_, i) => i !== index);
@@ -110,12 +73,19 @@ export default function AddProjectModal({
 
   const handleImages = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
+    if (files.some((file) => !["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024)) {
+      showToast("Utilisez des images JPEG, PNG ou WebP de 10 Mio maximum.");
+      event.target.value = "";
+      return;
+    }
 
     setImages((prev) => [...prev, ...files]);
-    setPreviews((prev) => [
-      ...prev,
-      ...files.map((file) => URL.createObjectURL(file)),
-    ]);
+    const newPreviews = files.map((file) => {
+      const url = URL.createObjectURL(file);
+      ownedPreviews.current.add(url);
+      return url;
+    });
+    setPreviews((prev) => [...prev, ...newPreviews]);
 
     event.target.value = "";
   };
@@ -123,6 +93,7 @@ export default function AddProjectModal({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
+    if (savingRef.current) return;
     if (!title.trim()) return showToast("Le titre est obligatoire");
     if (!desc.trim()) return showToast("La description est obligatoire");
     if (!tech.trim()) return showToast("Les technologies sont obligatoires");
@@ -131,17 +102,18 @@ export default function AddProjectModal({
     }
     if (images.length === 0) return showToast("Importez au moins 1 image");
 
+    savingRef.current = true;
     setLoading(true);
 
     try {
-      const optimizedImages = await Promise.all(
-        images.map((image) => optimizeProjectImage(image)),
-      );
+      const optimizedImages = await mapWithConcurrency(images, 2, (image) => optimizeProjectImage(image));
 
-      const uploadResults = await Promise.all(
-        optimizedImages.map(async (image, index) => {
+      const uploadResults = await mapWithConcurrency(optimizedImages, 2, async (image, index) => {
+          const cached = uploadedImages.current.get(images[index]);
+          if (cached) return cached;
           const path = createStoragePath(image, index);
 
+          try {
           const { error } = await supabase.storage
             .from("projects")
             .upload(path, image, {
@@ -157,8 +129,11 @@ export default function AddProjectModal({
             .from("projects")
             .getPublicUrl(path);
 
-          return { path, publicUrl: data.publicUrl };
-        }),
+          const uploaded = { path, publicUrl: data.publicUrl };
+          uploadedImages.current.set(images[index], uploaded);
+          return uploaded;
+          } catch { return { path, publicUrl: null }; }
+        },
       );
 
       const successfulUploads = uploadResults.filter(
@@ -166,12 +141,8 @@ export default function AddProjectModal({
       );
 
       if (successfulUploads.length !== images.length) {
-        const uploadedPaths = successfulUploads.map((result) => result.path);
-
-        if (uploadedPaths.length > 0) {
-          await supabase.storage.from("projects").remove(uploadedPaths);
-        }
-
+        // Les imports déjà confirmés sont réutilisés à la prochaine tentative.
+        // Certains peuvent appartenir à une écriture dont la réponse a été perdue.
         showToast("Échec de l'import d'une ou plusieurs images");
         return;
       }
@@ -180,37 +151,28 @@ export default function AddProjectModal({
         (result) => result.publicUrl as string,
       );
 
-      const { data, error } = await supabase
-        .from("projects")
-        .insert([
-          {
-            title: title.trim(),
-            description: desc.trim(),
-            live_url: live.trim() || null,
-            github_url: github.trim() || null,
-            technologies: toStringList(tech),
-            key_features: toStringList(features),
-            image_url: uploadedUrls[0] || null,
-            image_urls: uploadedUrls,
-          },
-        ])
-        .select()
-        .single();
+      const id = creationId.current ??= crypto.randomUUID();
+      const { data, error } = await createAdminRecord(supabase, "projects", {
+        id, title: title.trim(), description: desc.trim(),
+        live_url: live.trim() || null, github_url: github.trim() || null,
+        technologies: toStringList(tech), key_features: toStringList(features),
+        image_url: uploadedUrls[0] || null, image_urls: uploadedUrls,
+      }, PROJECT_PUBLIC_COLUMNS);
 
-      if (error) {
-        await supabase.storage
-          .from("projects")
-          .remove(successfulUploads.map((result) => result.path));
-
-        showToast("Échec de l'enregistrement");
+      if (error || !data) {
+        // Ne pas supprimer une image potentiellement référencée par une écriture
+        // validée dont l'accusé de réception n'est pas arrivé au navigateur.
+        showToast(error?.code === "ADMIN_CREATE_CONFLICT" ? error.message : "L’enregistrement n’a pas été confirmé. Le formulaire est conservé.");
         return;
       }
 
+      void revalidatePortfolio();
       onAdd(normalizeProject(data));
 
       previews.forEach((preview) => {
         if (preview.startsWith("blob:")) {
           URL.revokeObjectURL(preview);
+          ownedPreviews.current.delete(preview);
         }
       });
 
@@ -222,11 +184,14 @@ export default function AddProjectModal({
       setFeatures("");
       setImages([]);
       setPreviews([]);
+      creationId.current = null;
+      uploadedImages.current.clear();
 
       onClose();
     } catch {
       showToast("Une erreur est survenue");
     } finally {
+      savingRef.current = false;
       setLoading(false);
     }
   };
@@ -234,6 +199,8 @@ export default function AddProjectModal({
   return (
     <div
       className="fixed inset-0 z-[999] bg-black/70 backdrop-blur-md flex items-center justify-center px-3 sm:px-6 py-6"
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-project-title"
@@ -262,7 +229,8 @@ export default function AddProjectModal({
           <button
             type="button"
             aria-label="Fermer la fenêtre d'ajout"
-            onClick={onClose}
+            disabled={loading}
+              onClick={() => { if (!savingRef.current) onClose(); }}
             className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition"
           >
             <X size={16} />
@@ -278,6 +246,7 @@ export default function AddProjectModal({
               <label className="text-xs text-white/50">Titre du projet</label>
 
               <input
+            disabled={loading}
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 className="w-full mt-2 px-4 py-3 bg-[#111] border border-white/10 rounded-2xl outline-none text-sm"
@@ -295,6 +264,7 @@ export default function AddProjectModal({
                 </span>
 
                 <input
+            disabled={loading}
                   type="file"
                   multiple
                   accept="image/jpeg,image/png,image/webp"
@@ -313,6 +283,7 @@ export default function AddProjectModal({
                   className="relative rounded-2xl overflow-hidden border border-white/10"
                 >
                   <ResponsiveImage
+                          sizes="160px"
                     src={image}
                     alt={`Aperçu de l'image ${index + 1}`}
                     className="w-full h-24 object-cover"
@@ -320,6 +291,7 @@ export default function AddProjectModal({
 
                   <button
                     type="button"
+                    disabled={loading}
                     onClick={() => removeImage(index)}
                     aria-label={`Retirer l'image ${index + 1}`}
                     className="absolute top-2 right-2 bg-black/70 hover:bg-black rounded-full p-1.5"
@@ -335,6 +307,7 @@ export default function AddProjectModal({
             <label className="text-xs text-white/50">Description</label>
 
             <textarea
+              disabled={loading}
               value={desc}
               onChange={(event) => setDesc(event.target.value)}
               className="w-full mt-2 px-4 py-3 min-h-[110px] bg-[#111] border border-white/10 rounded-2xl outline-none resize-none text-sm"
@@ -343,6 +316,7 @@ export default function AddProjectModal({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <input
+            disabled={loading}
               placeholder="URL de la démo en ligne"
               value={live}
               onChange={(event) => setLive(event.target.value)}
@@ -350,6 +324,7 @@ export default function AddProjectModal({
             />
 
             <input
+            disabled={loading}
               placeholder="URL Github"
               value={github}
               onChange={(event) => setGithub(event.target.value)}
@@ -358,6 +333,7 @@ export default function AddProjectModal({
           </div>
 
           <input
+            disabled={loading}
             placeholder="Technologies"
             value={tech}
             onChange={(event) => setTech(event.target.value)}
@@ -365,6 +341,7 @@ export default function AddProjectModal({
           />
 
           <input
+            disabled={loading}
             placeholder="Fonctionnalités clés"
             value={features}
             onChange={(event) => setFeatures(event.target.value)}
@@ -374,7 +351,8 @@ export default function AddProjectModal({
           <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
             <button
               type="button"
-              onClick={onClose}
+              disabled={loading}
+              onClick={() => { if (!savingRef.current) onClose(); }}
               className="w-full sm:w-auto px-5 py-3 rounded-2xl border border-white/10 hover:bg-white/5 transition text-sm"
             >
               Annuler

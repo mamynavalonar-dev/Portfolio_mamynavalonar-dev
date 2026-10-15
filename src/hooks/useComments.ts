@@ -1,37 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PortfolioComment } from "@/types";
 import {
   createCommentService,
-  fetchCommentsService,
   likeCommentService,
 } from "@/lib/commentService";
+import { loadInitialComments } from "@/lib/commentLoading";
+import { scheduleVisibleTask } from "@/lib/visibleTask";
 
 export default function useComments() {
   const [comments, setComments] = useState<PortfolioComment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const fetchInitialComments = useCallback(async () => {
-    try {
-      setComments(await fetchCommentsService());
-    } catch (fetchError) {
-      setError(
-        fetchError instanceof Error
-          ? fetchError.message
-          : "Impossible de charger les commentaires.",
-      );
-    }
-  }, []);
+  const pendingLikes = useRef(new Set<number>());
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void fetchInitialComments();
-    }, 0);
+    const controller = new AbortController();
+    const cancel = scheduleVisibleTask("contact", () => {
+      void loadInitialComments(controller.signal, setComments, setError);
+    });
 
-    return () => window.clearTimeout(timer);
-  }, [fetchInitialComments]);
+    return () => {
+      cancel();
+      controller.abort();
+    };
+  }, []);
 
   const addComment = async ({
     name,
@@ -47,7 +41,7 @@ export default function useComments() {
 
     try {
       const newComment = await createCommentService({ name, comment, image });
-      setComments((current) => [newComment, ...current]);
+      setComments((current) => [newComment, ...current.filter((item) => item.id !== newComment.id)]);
       return true;
     } catch (createError) {
       setError(
@@ -62,10 +56,12 @@ export default function useComments() {
   };
 
   const likeComment = async (id: number) => {
+    if (pendingLikes.current.has(id)) return;
     try {
       if (localStorage.getItem(`liked-${id}`)) return;
     } catch { /* Le stockage navigateur est facultatif. */ }
 
+    pendingLikes.current.add(id);
     setError("");
 
     try {
@@ -80,6 +76,8 @@ export default function useComments() {
           ? likeError.message
           : "Impossible d'ajouter ce j'aime.",
       );
+    } finally {
+      pendingLikes.current.delete(id);
     }
   };
 

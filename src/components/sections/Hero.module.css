@@ -1,0 +1,3 @@
+.section { min-height: 100svh; padding-top: calc(112px + env(safe-area-inset-top, 0px)); padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)); }
+.scrollAnchor { position: absolute; left: 0; right: 0; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: center; pointer-events: none; z-index: 20; }
+@media (min-width: 768px) { .section { min-height: 100vh; padding-top: 0; padding-bottom: 0; } .scrollAnchor { bottom: 36px; } }

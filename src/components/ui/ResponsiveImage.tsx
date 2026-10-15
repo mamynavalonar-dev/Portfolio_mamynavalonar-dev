@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Image, { type ImageProps } from "next/image";
 
 type ResponsiveImageProps = Omit<
@@ -29,25 +32,39 @@ function canOptimizeImage(src: string): boolean {
   }
 }
 
-export default function ResponsiveImage({
+const FALLBACK_IMAGE = "/assets/image-unavailable.svg";
+
+function ImageWithFallback({
   src,
   alt,
   width = 800,
   height = 600,
   sizes = "(max-width: 768px) 100vw, 50vw",
+  fill,
+  onError,
   ...props
 }: ResponsiveImageProps) {
+  const [failed, setFailed] = useState(false);
   const bypassOptimization = !canOptimizeImage(src);
 
   return (
     <Image
       {...props}
-      src={src}
-      alt={alt}
-      width={width}
-      height={height}
+      src={failed ? FALLBACK_IMAGE : src}
+      alt={failed && alt ? `${alt} — image temporairement indisponible` : alt}
+      fill={fill}
+      width={fill ? undefined : width}
+      height={fill ? undefined : height}
       sizes={sizes}
-      unoptimized={bypassOptimization}
+      unoptimized={failed || bypassOptimization}
+      onError={(event) => {
+        if (!failed) setFailed(true);
+        onError?.(event);
+      }}
     />
   );
+}
+
+export default function ResponsiveImage(props: ResponsiveImageProps) {
+  return <ImageWithFallback key={props.src} {...props} />;
 }

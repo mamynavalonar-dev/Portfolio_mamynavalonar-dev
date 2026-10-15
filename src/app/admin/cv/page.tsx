@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import useAdminCachedState from "@/hooks/useAdminCachedState";
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckCircle2,
   Download,
@@ -9,7 +11,6 @@ import {
   RefreshCw,
   UploadCloud,
 } from "lucide-react";
-import Sidebar from "@/app/admin/Sidebar";
 import { CV_MAX_BYTES, CV_MIME_TYPE } from "@/lib/cvValidation";
 
 type CvInfo = {
@@ -36,20 +37,23 @@ function formatFileSize(bytes: number | null) {
 }
 
 export default function CvAdminPage() {
-  const [cv, setCv] = useState<CvInfo | null>(null);
+  const [cv, setCv, hasSnapshot] = useAdminCachedState<CvInfo | null>("cv", null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !hasSnapshot());
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const loadCv = useCallback(async () => {
-    setLoading(true);
+  const readVersion = useRef(0);
+  const loadCv = useCallback(async (signal?: AbortSignal) => {
+    const version = ++readVersion.current;
+    setLoading(!hasSnapshot());
     setErrorMessage(null);
 
     try {
       const response = await fetch("/api/admin/cv", {
         cache: "no-store",
+        signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000),
       });
       const payload = (await response.json()) as CvResponse;
 
@@ -57,24 +61,27 @@ export default function CvAdminPage() {
         throw new Error(payload.message || "Impossible de charger le CV.");
       }
 
+      if (signal?.aborted || version !== readVersion.current) return;
       setCv(payload.cv ?? null);
     } catch (error) {
+      if (signal?.aborted || version !== readVersion.current) return;
       setErrorMessage(
         error instanceof Error
           ? error.message
           : "Impossible de charger le CV.",
       );
     } finally {
-      setLoading(false);
+      if (!signal?.aborted && version === readVersion.current) setLoading(false);
     }
-  }, []);
+  }, [hasSnapshot, setCv]);
 
   useEffect(() => {
+    const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      void loadCv();
+      void loadCv(controller.signal);
     }, 0);
 
-    return () => window.clearTimeout(timer);
+    return () => { window.clearTimeout(timer); controller.abort(); readVersion.current += 1; };
   }, [loadCv]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,6 +135,8 @@ export default function CvAdminPage() {
         throw new Error(payload.message || "Impossible de mettre à jour le CV.");
       }
 
+      readVersion.current += 1;
+      setLoading(false);
       setCv(payload.cv ?? null);
       setSelectedFile(null);
       setMessage(payload.message || "CV mis à jour avec succès.");
@@ -144,10 +153,6 @@ export default function CvAdminPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white overflow-hidden">
-      <div className="fixed left-0 top-0 h-screen z-40">
-        <Sidebar />
-      </div>
-
       <main className="lg:ml-[250px] pt-[100px] lg:pt-0 min-h-screen">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-10 py-6 lg:py-8 max-w-6xl">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5 mb-8">

@@ -1,14 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Project, Certificate, TechStack } from "@/types";
-import {
-  fetchCertificates,
-  fetchProjects,
-  fetchTechStacks,
-} from "@/lib/portfolioService";
 import { normalizeProject } from "@/lib/projectFields";
+import { schedulePortfolioRefresh } from "@/lib/portfolioRefresh";
 import type { PublicPortfolioData } from "@/types";
+import { retainPublicRecords } from "@/lib/publicRecords";
 
 export default function usePortfolio(initialPortfolio?: PublicPortfolioData) {
   const [projects, setProjects] = useState<Project[]>(
@@ -61,6 +58,10 @@ export default function usePortfolio(initialPortfolio?: PublicPortfolioData) {
     }
 
     try {
+      // Les données SSR affichent déjà le portfolio. Le client Supabase peut
+      // attendre la véritable actualisation plutôt que charger avec l'accueil.
+      const { fetchProjects, fetchCertificates, fetchTechStacks } = await import("@/lib/portfolioService");
+      if (currentRequest !== requestId.current) return;
       const results = await Promise.allSettled([
           fetchProjects(),
           fetchCertificates(),
@@ -69,9 +70,9 @@ export default function usePortfolio(initialPortfolio?: PublicPortfolioData) {
 
       if (currentRequest !== requestId.current) return;
       const [projectsResult, certificatesResult, techResult] = results;
-      if (projectsResult.status === "fulfilled") setProjects(projectsResult.value);
-      if (certificatesResult.status === "fulfilled") setCertificates(certificatesResult.value);
-      if (techResult.status === "fulfilled") setTechStacks(techResult.value);
+      if (projectsResult.status === "fulfilled") setProjects((current) => retainPublicRecords(current, projectsResult.value));
+      if (certificatesResult.status === "fulfilled") setCertificates((current) => retainPublicRecords(current, certificatesResult.value));
+      if (techResult.status === "fulfilled") setTechStacks((current) => retainPublicRecords(current, techResult.value));
       setError(results.some((result) => result.status === "rejected")
         ? "Certains contenus ne peuvent pas être actualisés. Les contenus déjà chargés restent disponibles."
         : "");
@@ -84,28 +85,31 @@ export default function usePortfolio(initialPortfolio?: PublicPortfolioData) {
       } catch {
         // L'interface reste fonctionnelle si le stockage navigateur est bloqué.
       }
+    } catch {
+      if (currentRequest === requestId.current) setError("Certains contenus ne peuvent pas être actualisés. Les contenus déjà chargés restent disponibles.");
     } finally {
       if (currentRequest === requestId.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const cancelRefresh = schedulePortfolioRefresh(initialPortfolio, () => {
       void loadPortfolio(!initialPortfolio);
-    }, 0);
+    });
 
     return () => {
-      clearTimeout(timer);
+      cancelRefresh();
       requestId.current += 1;
     };
   }, [initialPortfolio, loadPortfolio]);
 
-  return {
+  const reload = useCallback(() => loadPortfolio(false), [loadPortfolio]);
+  return useMemo(() => ({
     projects,
     certificates,
     techStacks,
     loading,
     error,
-    reload: () => loadPortfolio(false),
-  };
+    reload,
+  }), [projects, certificates, techStacks, loading, error, reload]);
 }

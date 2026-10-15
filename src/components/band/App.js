@@ -1,13 +1,14 @@
 'use client';
 import './index.css';
 import * as THREE from 'three';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, extend, useThree, useFrame } from '@react-three/fiber';
 import {
   useGLTF,
   useTexture,
   Environment,
   Lightformer,
+  Bvh,
 } from '@react-three/drei';
 import {
   BallCollider,
@@ -18,11 +19,15 @@ import {
   useSphericalJoint,
 } from '@react-three/rapier';
 import { MeshLineGeometry, MeshLineMaterial } from 'meshline';
+import { createBadgeLineUpdater } from '@/lib/updateBadgeLine';
+import { recordBadgeFrame } from '@/lib/startupMetrics';
+import { BADGE_MODEL_URL, BADGE_TEXTURE_URL } from '@/lib/badgeAssets';
+import { configureBadgeRenderer, createBadgeRendererPreparation } from '@/lib/badgeRendering';
 
 extend({ MeshLineGeometry, MeshLineMaterial });
 
-const GLTF_PATH = '/assets/kartu.glb';
-const TEXTURE_PATH = '/assets/bandd.png';
+const GLTF_PATH = BADGE_MODEL_URL;
+const TEXTURE_PATH = BADGE_TEXTURE_URL;
 
 // Position initiale tendue vers le haut/droite.
 // Chaque segment garde exactement une longueur de 1 : aucun "coup de fouet"
@@ -36,12 +41,20 @@ useTexture.preload(TEXTURE_PATH);
 
 export default function App({
   onDragChange,
+  onMotionChange,
   onReady,
+  onError,
   startEntrance = false,
 }) {
   const [isMobile, setIsMobile] = useState(false);
   const [isCanvasActive, setIsCanvasActive] = useState(true);
+  const [documentVisible, setDocumentVisible] = useState(true);
   const wrapperRef = useRef(null);
+  const [rendererReady, setRendererReady] = useState(false);
+  const handleRendererReady = useCallback(() => {
+    setRendererReady(true);
+    onReady?.();
+  }, [onReady]);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -60,13 +73,22 @@ export default function App({
       },
       {
         threshold: 0,
-        rootMargin: '120px 0px 120px 0px',
+        rootMargin: '0px',
       }
     );
 
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const update = () => setDocumentVisible(document.visibilityState === 'visible');
+    update();
+    document.addEventListener('visibilitychange', update);
+    return () => document.removeEventListener('visibilitychange', update);
+  }, []);
+
+  const active = isCanvasActive && documentVisible;
 
   return (
     <div
@@ -82,7 +104,8 @@ export default function App({
       }}
     >
       <Canvas
-        frameloop={isCanvasActive ? 'always' : 'never'}
+        onCreated={({ gl }) => configureBadgeRenderer(gl)}
+        frameloop={active ? 'demand' : 'never'}
         dpr={[1, 1.2]}
         gl={{
           alpha: true,
@@ -102,7 +125,8 @@ export default function App({
         <Scene
           isMobile={isMobile}
           onDragChange={onDragChange}
-          onReady={onReady}
+          onMotionChange={onMotionChange}
+          active={active && rendererReady}
           startEntrance={startEntrance}
         />
 
@@ -136,24 +160,46 @@ export default function App({
             scale={[100, 10, 1]}
           />
         </Environment>
+        <PreparedRenderer onReady={handleRendererReady} onError={onError} />
       </Canvas>
     </div>
   );
 }
 
-function Scene({ isMobile, onDragChange, onReady, startEntrance }) {
+function PreparedRenderer({ onReady, onError }) {
+  const { gl, scene, camera, invalidate, clock } = useThree();
+  const preparation = useRef(null);
+  useEffect(() => {
+    const current = createBadgeRendererPreparation(gl, scene, camera, {
+      invalidate,
+      resetClock: () => clock.getDelta(),
+      onReady,
+      onError: (error) => onError?.(error),
+    });
+    preparation.current = current;
+    invalidate();
+    return () => { current.cancel(); if (preparation.current === current) preparation.current = null; };
+  }, [gl, scene, camera, invalidate, clock, onReady, onError]);
+  // Priorité positive : le premier dessin attend la compilation asynchrone.
+  // Les mêmes callbacks physiques restent exécutés avant le rendu normal.
+  useFrame(() => { if (preparation.current?.draw()) recordBadgeFrame(); }, 1);
+  return null;
+}
+
+function Scene({ isMobile, onDragChange, onMotionChange, startEntrance, active }) {
   return (
     <Physics
       key={isMobile ? 'mobile' : 'desktop'}
       interpolate
       gravity={[0, -40, 0]}
       timeStep={1 / 60}
+      paused={!active}
     >
       {!isMobile && (
         <Band
           isMobile={isMobile}
           onDragChange={onDragChange}
-          onReady={onReady}
+          onMotionChange={onMotionChange}
           startEntrance={startEntrance}
         />
       )}
@@ -164,7 +210,7 @@ function Scene({ isMobile, onDragChange, onReady, startEntrance }) {
 function Band({
   isMobile,
   onDragChange,
-  onReady,
+  onMotionChange,
   startEntrance,
   maxSpeed = 50,
   minSpeed = 10,
@@ -175,9 +221,10 @@ function Band({
   const j2 = useRef();
   const j3 = useRef();
   const card = useRef();
-  const readySent = useRef(false);
   const releaseHandled = useRef(false);
   const wasDragged = useRef(false);
+  const movingSent = useRef(false);
+  const preparationFrames = useRef(0);
 
   const vec = new THREE.Vector3();
   const ang = new THREE.Vector3();
@@ -204,7 +251,10 @@ function Band({
     clonedTexture.needsUpdate = true;
     return clonedTexture;
   }, [sourceTexture]);
+  useEffect(() => () => texture.dispose(), [texture]);
   const { width, height } = useThree((state) => state.size);
+  const clock = useThree((state) => state.clock);
+  const invalidate = useThree((state) => state.invalidate);
 
   const [curve] = useState(() => {
     const nextCurve = new THREE.CatmullRomCurve3([
@@ -216,11 +266,17 @@ function Band({
     nextCurve.curveType = 'chordal';
     return nextCurve;
   });
+  const [updateLine] = useState(() => createBadgeLineUpdater(32));
 
   const [dragged, drag] = useState(false);
   const [hovered, hover] = useState(false);
   const [entranceComplete, setEntranceComplete] = useState(false);
   const canDrag = !isMobile && entranceComplete;
+  const preparePointerFrame = () => {
+    // Un long repos ne doit pas devenir un rattrapage de physique au clic.
+    if ([j1, j2, j3, card].every((ref) => ref.current?.isSleeping())) clock.getDelta();
+    invalidate();
+  };
 
   useRopeJoint(fixed, j1, [[0, 0, 0], [0, 0, 0], 1]);
   useRopeJoint(j1, j2, [[0, 0, 0], [0, 0, 0], 1]);
@@ -253,11 +309,10 @@ function Band({
     return () => onDragChange?.(false);
   }, [onDragChange]);
 
+  useEffect(() => () => { movingSent.current = false; onMotionChange?.(false); }, [onMotionChange]);
+
   useFrame((state, delta) => {
-    if (!readySent.current) {
-      readySent.current = true;
-      onReady?.();
-    }
+    if (preparationFrames.current < 6) { preparationFrames.current += 1; state.invalidate(); }
 
     // Au moment exact où le landing a fini de sortir, les corps passent de
     // cinématiques à dynamiques. Ils sont déjà positionnés comme une corde
@@ -358,7 +413,7 @@ function Band({
       curve.points[3].copy(fixed.current.translation());
 
       if (band.current?.geometry) {
-        band.current.geometry.setPoints(curve.getPoints(32));
+        updateLine(band.current.geometry, curve);
       }
 
       ang.copy(card.current.angvel());
@@ -369,6 +424,14 @@ function Band({
         y: ang.y - rot.y * 0.25,
         z: ang.z,
       });
+
+      const ropeSettling = j1.current.lerped.distanceTo(j1.current.translation()) > .0001 || j2.current.lerped.distanceTo(j2.current.translation()) > .0001;
+      if (ropeSettling) state.invalidate();
+      const moving = startEntrance && (Boolean(dragged) || ropeSettling || !j1.current.isSleeping() || !j2.current.isSleeping() || !j3.current.isSleeping() || !card.current.isSleeping());
+      if (moving !== movingSent.current) {
+        movingSent.current = moving;
+        onMotionChange?.(moving);
+      }
     }
   });
 
@@ -430,8 +493,8 @@ function Band({
           <group
             scale={2.25}
             position={[0, -1.2, -0.05]}
-            onPointerOver={() => canDrag && hover(true)}
-            onPointerOut={() => canDrag && hover(false)}
+            onPointerOver={() => { if (canDrag) { preparePointerFrame(); hover(true); } }}
+            onPointerOut={() => { if (canDrag) { preparePointerFrame(); hover(false); } }}
             onPointerUp={(e) => {
               if (!canDrag) return;
               e.target.releasePointerCapture(e.pointerId);
@@ -444,6 +507,7 @@ function Band({
             }}
             onPointerDown={(e) => {
               if (!canDrag) return;
+              preparePointerFrame();
               e.target.setPointerCapture(e.pointerId);
               onDragChange?.(true);
               drag(
@@ -453,16 +517,18 @@ function Band({
               );
             }}
           >
+            <Bvh firstHitOnly indirect>
             <mesh geometry={nodes.card.geometry}>
               <meshPhysicalMaterial {...materials.base} />
             </mesh>
             <mesh geometry={nodes.clip.geometry} material={materials.metal} />
             <mesh geometry={nodes.clamp.geometry} material={materials.metal} />
+            </Bvh>
           </group>
         </RigidBody>
       </group>
 
-      <mesh ref={band}>
+      <mesh ref={band} frustumCulled={false}>
         <meshLineGeometry />
         <meshLineMaterial
           transparent

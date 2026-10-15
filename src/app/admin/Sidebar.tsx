@@ -1,6 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
+import { useAdminMemoryCache } from "@/components/admin/AdminDataProvider";
 import {
   LayoutDashboard,
   Folder,
@@ -9,14 +10,18 @@ import {
   Inbox,
   Layers,
   FileText,
+  Code2,
+  GraduationCap,
+  Share2,
   Menu,
   X,
   LogOut,
+  LoaderCircle,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useRef, useState } from "react";
 
 const menus = [
   {
@@ -29,6 +34,9 @@ const menus = [
     icon: Folder,
     path: "/admin/projects",
   },
+  { name: "Services", icon: Code2, path: "/admin/services" },
+  { name: "Parcours", icon: GraduationCap, path: "/admin/journey" },
+  { name: "Réseaux sociaux", icon: Share2, path: "/admin/social" },
   {
     name: "Certificats",
     icon: Award,
@@ -56,24 +64,31 @@ const menus = [
   },
 ];
 
+function NavigationFeedback() {
+  const { pending } = useLinkStatus();
+  return pending ? <span role="status" className="relative z-10 ml-auto inline-flex items-center"><LoaderCircle size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /><span className="sr-only">Ouverture…</span></span> : null;
+}
+
 function SidebarContent({
   pathname,
   hideTitle = false,
   onNavigate,
   onLogout,
+  onPrefetch,
 }: {
   pathname: string;
   hideTitle?: boolean;
   onNavigate?: () => void;
   onLogout: () => void;
+  onPrefetch: (path: string) => void;
 }) {
   return (
     <>
       <div>
         {!hideTitle && (
-          <h1 className="text-lg font-semibold mb-8 tracking-wide text-white">
+          <p className="text-lg font-semibold mb-8 tracking-wide text-white">
             Panneau d&apos;administration
-          </h1>
+          </p>
         )}
 
         <nav className="space-y-2">
@@ -86,6 +101,9 @@ function SidebarContent({
               <Link
                 key={menu.path}
                 href={menu.path}
+                prefetch={false}
+                onMouseEnter={() => onPrefetch(menu.path)}
+                onFocus={() => onPrefetch(menu.path)}
                 className="block"
                 onClick={onNavigate}
               >
@@ -130,6 +148,7 @@ function SidebarContent({
                   <span className="relative z-10 text-sm font-medium tracking-wide">
                     {menu.name}
                   </span>
+                  <NavigationFeedback />
                 </motion.div>
               </Link>
             );
@@ -156,24 +175,17 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
-
-    const frameId = requestAnimationFrame(checkMobile);
-    window.addEventListener("resize", checkMobile);
-
-    return () => {
-      cancelAnimationFrame(frameId);
-      window.removeEventListener("resize", checkMobile);
-    };
-  }, []);
+  const cache = useAdminMemoryCache();
+  const prefetched = useRef(new Set<string>());
+  const prefetch = (path: string) => {
+    if (path === pathname || prefetched.current.has(path)) return;
+    prefetched.current.add(path);
+    router.prefetch(path);
+  };
 
   const handleLogout = async () => {
     const { supabase } = await import("@/lib/supabase");
+    cache.clear();
     await supabase.auth.signOut();
     router.replace("/admin/login");
     router.refresh();
@@ -181,18 +193,14 @@ export default function Sidebar() {
 
   return (
     <>
-      {!isMobile && (
-        <aside className="fixed left-0 top-0 h-screen w-[250px] bg-black border-r border-white/10 p-6 flex flex-col justify-between overflow-hidden z-50">
-          <SidebarContent pathname={pathname} onLogout={handleLogout} />
+        <aside className="fixed left-0 top-0 h-screen w-[250px] bg-black border-r border-white/10 p-6 hidden lg:flex flex-col justify-between gap-8 overflow-y-auto z-50">
+          <SidebarContent pathname={pathname} onLogout={handleLogout} onPrefetch={prefetch} />
         </aside>
-      )}
-
-      {isMobile && (
         <>
-          <div className="fixed top-0 left-0 right-0 h-[70px] bg-black/95 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-5 z-[60]">
-            <h1 className="text-white font-semibold text-base">
+          <div className="fixed top-0 left-0 right-0 h-[70px] bg-black/95 backdrop-blur-xl border-b border-white/10 flex lg:hidden items-center justify-between px-5 z-[60]">
+            <p className="text-white font-semibold text-base">
               Panneau d&apos;administration
-            </h1>
+            </p>
 
             <button
               type="button"
@@ -212,7 +220,7 @@ export default function Sidebar() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onClick={() => setOpen(false)}
-                  className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[70]"
+                  className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[70] lg:hidden"
                 />
 
                 <motion.aside
@@ -224,12 +232,12 @@ export default function Sidebar() {
                     stiffness: 260,
                     damping: 28,
                   }}
-                  className="fixed left-0 top-0 h-screen w-[260px] bg-black border-r border-white/10 p-6 flex flex-col justify-between z-[80]"
+                  className="fixed left-0 top-0 h-screen w-[260px] bg-black border-r border-white/10 p-6 flex lg:hidden flex-col justify-between gap-6 overflow-y-auto z-[80]"
                 >
                   <div className="flex items-center justify-between mb-8">
-                    <h1 className="text-lg font-semibold text-white">
+                    <p className="text-lg font-semibold text-white">
                       Panneau d&apos;administration
-                    </h1>
+                    </p>
 
                     <button
                       type="button"
@@ -244,6 +252,7 @@ export default function Sidebar() {
                   <div className="flex-1 flex flex-col justify-between">
                     <SidebarContent
                       pathname={pathname}
+                      onPrefetch={prefetch}
                       hideTitle
                       onNavigate={() => setOpen(false)}
                       onLogout={handleLogout}
@@ -254,7 +263,6 @@ export default function Sidebar() {
             )}
           </AnimatePresence>
         </>
-      )}
     </>
   );
 }

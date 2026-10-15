@@ -1,0 +1,6 @@
+.base { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; background: #09090d; }
+.gradient { position: absolute; inset: -5%; background: radial-gradient(ellipse at bottom, #251847 0%, #09090d 65%); }
+.light { position: absolute; inset: -5%; opacity: .3; background: radial-gradient(ellipse at 75% 75%, #472c6866, transparent 60%); }
+.shade { position: absolute; inset: 0; background: radial-gradient(circle at 50% 10%, #ffffff06, transparent 36%), linear-gradient(to bottom, #0505080a, #05050833); }
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) { .light { animation: soft-light 22s ease-in-out infinite alternate; animation-play-state: paused; } .base[data-animated='true'] .light { animation-play-state: running; } }
+@keyframes soft-light { from { transform: translate3d(-2%, 0, 0); opacity: .2; } to { transform: translate3d(2%, -2%, 0); opacity: .4; } }
