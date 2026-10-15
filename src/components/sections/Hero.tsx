@@ -1,42 +1,40 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useRef, useState } from "react";
 import {
   motion,
   useScroll,
   useTransform,
+  useInView,
 } from "framer-motion";
 import { ArrowDown, Circle } from "lucide-react";
 import TextType from "@/components/band/TextType";
 import ShinyText from "@/components/ui/ShinyText";
 import useMediaQuery from "@/hooks/useMediaQuery";
-
-const BandApp = dynamic(() => import("@/components/band/App"), {
-  ssr: false,
-});
+import LanyardBadge from "@/components/band/LanyardBadge";
+import styles from "./Hero.module.css";
 
 const skills = ["Typescript", "React.js", "Tailwind"];
-const badgeMedia = "(min-width: 768px) and (prefers-reduced-motion: no-preference)";
-const subscribeBadgeMedia = (notify: () => void) => {
-  const media = window.matchMedia(badgeMedia);
-  media.addEventListener("change", notify);
-  return () => media.removeEventListener("change", notify);
-};
-const getBadgeMedia = () => window.matchMedia(badgeMedia).matches;
-const getServerBadgeMedia = () => false;
+const HERO_TITLES = ["Développeur Full Stack junior", "Développeur Web", "React • Next.js • TypeScript", "Ouvert aux opportunités"];
 
 export default function Hero({
   onBadgeReady,
+  onBadgeUnavailable,
+  onBadgeMotionChange,
   startBadgeEntrance = false,
+  animateDecorations = true,
 }: {
   onBadgeReady?: () => void;
+  onBadgeUnavailable?: () => void;
+  onBadgeMotionChange?: (moving: boolean) => void;
   startBadgeEntrance?: boolean;
+  animateDecorations?: boolean;
 }) {
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
-  const showBadge = useSyncExternalStore(subscribeBadgeMedia, getBadgeMedia, getServerBadgeMedia);
   const [isLanyardDragging, setIsLanyardDragging] = useState(false);
   const heroRef = useRef<HTMLElement | null>(null);
+  const heroVisible = useInView(heroRef, { initial: true, amount: 0 });
+  const decorationsEnabled = animateDecorations && heroVisible;
   const startAnim = true;
 
   const { scrollYProgress } = useScroll({
@@ -65,21 +63,21 @@ export default function Hero({
     <section
       ref={heroRef}
       id="home"
-      className="relative isolate flex min-h-screen items-center justify-start overflow-visible px-6 md:pl-[120px] md:pr-[60px]"
+      className={`${styles.section} relative isolate flex items-start md:items-center justify-start overflow-visible px-6 md:pl-[120px] md:pr-[60px]`}
     >
-      {showBadge && (
-        <div
-          className={`pointer-events-none absolute inset-0 hidden overflow-visible md:block ${
-            isLanyardDragging ? "z-[8]" : "z-[4]"
-          }`}
-        >
-          <BandApp
-            onDragChange={setIsLanyardDragging}
-            onReady={onBadgeReady}
-            startEntrance={startBadgeEntrance}
-          />
-        </div>
-      )}
+      <div
+        className={`pointer-events-none absolute inset-0 hidden overflow-visible md:block ${
+          isLanyardDragging ? "z-[8]" : "z-[4]"
+        }`}
+      >
+        <LanyardBadge
+          onDragChange={setIsLanyardDragging}
+          onReady={onBadgeReady}
+          onUnavailable={onBadgeUnavailable}
+          onMotionChange={onBadgeMotionChange}
+          startEntrance={startBadgeEntrance}
+        />
+      </div>
 
       <div className="relative z-[5] w-full md:max-w-[600px]">
         <motion.div
@@ -90,10 +88,10 @@ export default function Hero({
               : { opacity: 0, y: 30, filter: "blur(12px)" }
           }
           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          className="relative top-6 mb-8 flex items-center gap-2"
+          className="relative md:top-6 mb-8 flex min-w-0 items-center gap-2"
         >
-          <Circle size={8} className="fill-emerald-400 text-emerald-400" />
-          <span className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+          <Circle size={8} className="shrink-0 fill-emerald-400 text-emerald-400" />
+          <span data-hero-name="" className="font-mono text-[10px] leading-relaxed sm:text-xs uppercase tracking-[0.1em] md:tracking-[0.2em] text-[var(--text-muted)]">
             RAKOTONIAINA Mamy Navalona Antonio
           </span>
         </motion.div>
@@ -121,7 +119,7 @@ export default function Hero({
               spread={115}
               direction="left"
               yoyo
-              disabled={Boolean(reducedMotion)}
+              disabled={!decorationsEnabled || Boolean(reducedMotion)}
             />
           </motion.span>
 
@@ -148,7 +146,7 @@ export default function Hero({
               spread={115}
               direction="left"
               yoyo
-              disabled={Boolean(reducedMotion)}
+              disabled={!decorationsEnabled || Boolean(reducedMotion)}
             />
           </motion.span>
         </h1>
@@ -157,16 +155,12 @@ export default function Hero({
           initial={false}
           animate={startAnim ? { opacity: 1, x: 0 } : { opacity: 0, x: 40 }}
           transition={{ duration: 0.22, delay: 0.04 }}
-          className="mb-3"
+          className="mb-3 min-h-[46px] md:min-h-[28px]"
         >
           <span className="font-mono text-[15px] tracking-[0.1em] text-[var(--text-secondary)]">
             <TextType
-              text={[
-                "Développeur Full Stack junior",
-                "Développeur Web",
-                "React • Next.js • TypeScript",
-                "Ouvert aux opportunités",
-              ]}
+              text={HERO_TITLES}
+              active={decorationsEnabled}
               typingSpeed={24}
               pauseDuration={900}
               showCursor
@@ -201,7 +195,7 @@ export default function Hero({
         </motion.div>
 
         <motion.div
-          initial="hidden"
+          initial={false}
           animate={startAnim ? "visible" : "hidden"}
           variants={{
             hidden: {},
@@ -257,23 +251,24 @@ export default function Hero({
         </motion.div>
       </div>
 
+      <div data-scroll-anchor="" className={styles.scrollAnchor}>
       <motion.div
         style={{
           opacity: scrollIndicatorOpacity,
           y: scrollIndicatorY,
         }}
-        className="pointer-events-none absolute bottom-9 left-1/2 z-20 -translate-x-1/2"
+        className="flex justify-center"
       >
         <motion.div
           animate={
-            reducedMotion
+            reducedMotion || !decorationsEnabled
               ? undefined
               : {
                   y: [0, -7, 0, 7, 0],
                 }
           }
           transition={
-            reducedMotion
+            reducedMotion || !decorationsEnabled
               ? undefined
               : {
                   duration: 1.8,
@@ -281,7 +276,7 @@ export default function Hero({
                   ease: "easeInOut",
                 }
           }
-          className="flex items-center justify-center gap-2"
+          className="flex flex-col items-center justify-center gap-2"
         >
           <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--text-muted)]">
             Défiler
@@ -289,6 +284,7 @@ export default function Hero({
           <ArrowDown size={14} className="text-[var(--text-secondary)]" />
         </motion.div>
       </motion.div>
+      </div>
     </section>
   );
 }

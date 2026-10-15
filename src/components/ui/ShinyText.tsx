@@ -2,7 +2,8 @@
 
 import {
   motion,
-  useAnimationFrame,
+  frame,
+  cancelFrame,
   useMotionValue,
   useTransform,
 } from "framer-motion";
@@ -50,52 +51,56 @@ export default function ShinyText({
   const animationDuration = Math.max(0.1, speed) * 1000;
   const delayDuration = Math.max(0, delay) * 1000;
 
-  useAnimationFrame((time) => {
+  useEffect(() => {
     if (disabled || isPaused) {
       lastTimeRef.current = null;
       return;
     }
 
-    if (lastTimeRef.current === null) {
+    const update = ({ timestamp: time }: { timestamp: number }) => {
+      if (lastTimeRef.current === null) {
+        lastTimeRef.current = time;
+        return;
+      }
+
+      const deltaTime = time - lastTimeRef.current;
       lastTimeRef.current = time;
-      return;
-    }
+      elapsedRef.current += deltaTime;
 
-    const deltaTime = time - lastTimeRef.current;
-    lastTimeRef.current = time;
-    elapsedRef.current += deltaTime;
+      if (yoyo) {
+        const cycleDuration = animationDuration + delayDuration;
+        const fullCycle = cycleDuration * 2;
+        const cycleTime = elapsedRef.current % fullCycle;
 
-    if (yoyo) {
+        if (cycleTime < animationDuration) {
+          const p = (cycleTime / animationDuration) * 100;
+          progress.set(directionRef.current === 1 ? p : 100 - p);
+        } else if (cycleTime < cycleDuration) {
+          progress.set(directionRef.current === 1 ? 100 : 0);
+        } else if (cycleTime < cycleDuration + animationDuration) {
+          const reverseTime = cycleTime - cycleDuration;
+          const p = 100 - (reverseTime / animationDuration) * 100;
+          progress.set(directionRef.current === 1 ? p : 100 - p);
+        } else {
+          progress.set(directionRef.current === 1 ? 0 : 100);
+        }
+
+        return;
+      }
+
       const cycleDuration = animationDuration + delayDuration;
-      const fullCycle = cycleDuration * 2;
-      const cycleTime = elapsedRef.current % fullCycle;
+      const cycleTime = elapsedRef.current % cycleDuration;
 
       if (cycleTime < animationDuration) {
         const p = (cycleTime / animationDuration) * 100;
         progress.set(directionRef.current === 1 ? p : 100 - p);
-      } else if (cycleTime < cycleDuration) {
-        progress.set(directionRef.current === 1 ? 100 : 0);
-      } else if (cycleTime < cycleDuration + animationDuration) {
-        const reverseTime = cycleTime - cycleDuration;
-        const p = 100 - (reverseTime / animationDuration) * 100;
-        progress.set(directionRef.current === 1 ? p : 100 - p);
       } else {
-        progress.set(directionRef.current === 1 ? 0 : 100);
+        progress.set(directionRef.current === 1 ? 100 : 0);
       }
-
-      return;
-    }
-
-    const cycleDuration = animationDuration + delayDuration;
-    const cycleTime = elapsedRef.current % cycleDuration;
-
-    if (cycleTime < animationDuration) {
-      const p = (cycleTime / animationDuration) * 100;
-      progress.set(directionRef.current === 1 ? p : 100 - p);
-    } else {
-      progress.set(directionRef.current === 1 ? 100 : 0);
-    }
-  });
+    };
+    frame.update(update, true);
+    return () => cancelFrame(update);
+  }, [disabled, isPaused, animationDuration, delayDuration, yoyo, progress]);
 
   useEffect(() => {
     directionRef.current = direction === "left" ? 1 : -1;

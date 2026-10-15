@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import useAdminCachedState from "@/hooks/useAdminCachedState";
+import { useAdminMemoryCache } from "@/components/admin/AdminDataProvider";
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Archive, CheckCheck, Inbox, Loader2, MailOpen, RefreshCcw } from "lucide-react";
-import Sidebar from "@/app/admin/Sidebar";
 
 type MessageStatus = "new" | "read" | "replied" | "archived";
 
@@ -23,20 +25,26 @@ const statusLabels: Record<MessageStatus, string> = {
 };
 
 export default function AdminMessagesPage() {
-  const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [filter, setFilter] = useState<"all" | MessageStatus>("all");
-  const [loading, setLoading] = useState(true);
+  const [messages, setMessages, hasSnapshot] = useAdminCachedState<ContactMessage[]>(`messages:${filter}`, []);
+  const cache = useAdminMemoryCache();
+  const [loading, setLoading] = useState(() => !hasSnapshot());
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const readVersion = useRef(0);
+  const mutationBusy = useRef(false);
 
-  const loadMessages = useCallback(async () => {
-    setLoading(true);
+  const loadMessages = useCallback(async (signal?: AbortSignal) => {
+    if (mutationBusy.current) return;
+    const version = ++readVersion.current;
+    setLoading(!hasSnapshot());
     setError("");
 
     try {
       const query = filter === "all" ? "" : `?status=${filter}`;
       const response = await fetch(`/api/admin/contact-messages${query}`, {
         cache: "no-store",
+        signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000),
       });
       const payload = (await response.json()) as {
         ok?: boolean;
@@ -48,33 +56,41 @@ export default function AdminMessagesPage() {
         throw new Error(payload.message ?? "Impossible de charger les messages.");
       }
 
+      if (signal?.aborted || version !== readVersion.current) return;
       setMessages(payload.messages ?? []);
     } catch (loadError) {
+      if (signal?.aborted || version !== readVersion.current) return;
       setError(
         loadError instanceof Error
           ? loadError.message
           : "Impossible de charger les messages.",
       );
     } finally {
-      setLoading(false);
+      if (!signal?.aborted && version === readVersion.current) setLoading(false);
     }
-  }, [filter]);
+  }, [filter, hasSnapshot, setMessages]);
 
   useEffect(() => {
+    const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      void loadMessages();
+      void loadMessages(controller.signal);
     }, 0);
 
-    return () => window.clearTimeout(timer);
+    return () => { window.clearTimeout(timer); controller.abort(); readVersion.current += 1; };
   }, [loadMessages]);
 
   const updateStatus = async (id: number, status: MessageStatus) => {
+    if (mutationBusy.current) return;
+    mutationBusy.current = true;
+    readVersion.current += 1;
+    setLoading(false);
     setUpdatingId(id);
     setError("");
 
     try {
       const response = await fetch("/api/admin/contact-messages", {
         method: "PATCH",
+        signal: AbortSignal.timeout(20_000),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status }),
       });
@@ -83,7 +99,7 @@ export default function AdminMessagesPage() {
         message?: string | ContactMessage;
       };
 
-      if (!response.ok || !payload.ok || typeof payload.message === "string") {
+      if (!response.ok || !payload.ok || !payload.message || typeof payload.message === "string" || payload.message.id !== id || payload.message.status !== status) {
         throw new Error(
           typeof payload.message === "string"
             ? payload.message
@@ -91,6 +107,15 @@ export default function AdminMessagesPage() {
         );
       }
 
+      const confirmed = payload.message;
+      cache.updateMatching("messages:", (value, key) => {
+        const rows = value as ContactMessage[];
+        const selectedStatus = key.slice("messages:".length);
+        const without = rows.filter((item) => item.id !== id);
+        return selectedStatus === "all" || selectedStatus === status
+          ? [...without, confirmed].sort((a, b) => b.created_at.localeCompare(a.created_at))
+          : without;
+      });
       if (filter !== "all" && status !== filter) {
         setMessages((current) => current.filter((item) => item.id !== id));
       } else {
@@ -107,13 +132,13 @@ export default function AdminMessagesPage() {
           : "Impossible de mettre à jour le message.",
       );
     } finally {
+      mutationBusy.current = false;
       setUpdatingId(null);
     }
   };
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
-      <Sidebar />
 
       <main className="min-h-screen px-4 pb-10 pt-[95px] sm:px-6 lg:ml-[250px] lg:px-8 lg:pt-8">
         <div className="mx-auto max-w-[1200px]">
@@ -131,7 +156,7 @@ export default function AdminMessagesPage() {
             <button
               type="button"
               onClick={() => void loadMessages()}
-              disabled={loading}
+              disabled={loading || updatingId !== null}
               className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm transition hover:bg-white/[0.08] disabled:opacity-50"
             >
               <RefreshCcw size={15} className={loading ? "animate-spin" : ""} />
@@ -146,7 +171,8 @@ export default function AdminMessagesPage() {
                   key={status}
                   type="button"
                   aria-pressed={filter === status}
-                  onClick={() => setFilter(status)}
+                  disabled={updatingId !== null}
+                  onClick={() => { if (status !== filter) { readVersion.current += 1; setFilter(status); } }}
                   className={`rounded-full border px-4 py-2 text-xs transition ${
                     filter === status
                       ? "border-white bg-white text-black"
@@ -172,7 +198,7 @@ export default function AdminMessagesPage() {
             </div>
           ) : messages.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-white/10 p-12 text-center text-sm text-white/40">
-              Aucun message dans cette catégorie.
+              {error ? "La liste n’a pas pu être chargée. Utilisez Actualiser pour réessayer." : "Aucun message dans cette catégorie."}
             </div>
           ) : (
             <div className="space-y-4">
@@ -211,17 +237,17 @@ export default function AdminMessagesPage() {
 
                   <div className="mt-5 flex flex-wrap gap-2 border-t border-white/10 pt-4">
                     {item.status === "new" && (
-                      <button type="button" disabled={updatingId === item.id} onClick={() => void updateStatus(item.id, "read")} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs text-black disabled:opacity-50">
+                      <button type="button" disabled={updatingId !== null} onClick={() => void updateStatus(item.id, "read")} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs text-black disabled:opacity-50">
                         <MailOpen size={14} /> Marquer comme lu
                       </button>
                     )}
                     {item.status !== "replied" && item.status !== "archived" && (
-                      <button type="button" disabled={updatingId === item.id} onClick={() => void updateStatus(item.id, "replied")} className="flex items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-xs disabled:opacity-50">
+                      <button type="button" disabled={updatingId !== null} onClick={() => void updateStatus(item.id, "replied")} className="flex items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-xs disabled:opacity-50">
                         <CheckCheck size={14} /> Réponse envoyée
                       </button>
                     )}
                     {item.status !== "archived" && (
-                      <button type="button" disabled={updatingId === item.id} onClick={() => void updateStatus(item.id, "archived")} className="flex items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-xs text-white/65 disabled:opacity-50">
+                      <button type="button" disabled={updatingId !== null} onClick={() => void updateStatus(item.id, "archived")} className="flex items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-xs text-white/65 disabled:opacity-50">
                         <Archive size={14} /> Archiver
                       </button>
                     )}

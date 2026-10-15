@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { INTRO_CRITICAL_CSS, INTRO_NOSCRIPT_CSS } from "@/lib/introStyles";
 
 const siteUrl = new URL(
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://portfolio-mamynavalonar-dev.vercel.app",
@@ -74,6 +75,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
+      <head>
+        <style dangerouslySetInnerHTML={{ __html: INTRO_CRITICAL_CSS }} />
+        <noscript><style dangerouslySetInnerHTML={{ __html: INTRO_NOSCRIPT_CSS }} /></noscript>
+        <link
+          rel="preload"
+          href="/fonts/syne-latin-wght-normal.68b623f0e45b.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body>
         <a
           href="#main-content"

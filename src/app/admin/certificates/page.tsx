@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import useAdminCachedState from "@/hooks/useAdminCachedState";
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, Trash2, Pencil, X, Upload } from "lucide-react";
-import Sidebar from "@/app/admin/Sidebar";
 import ResponsiveImage from "@/components/ui/ResponsiveImage";
 import { supabase } from "@/lib/supabase";
 import Swal from "sweetalert2";
+import { saveAdminImageRecord } from "@/lib/adminImageSave";
+import { revalidatePortfolio } from "@/lib/revalidatePortfolio";
 import { Certificate } from "@/types";
 
 export default function CertificatesPage() {
-  const [certificates, setCertificates] = useState<Certificate[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [certificates, setCertificates, hasSnapshot] = useAdminCachedState<Certificate[]>("certificates", []);
+  const [loading, setLoading] = useState(() => !hasSnapshot());
 
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
@@ -20,9 +23,32 @@ export default function CertificatesPage() {
   const [preview, setPreview] = useState("");
 
   const [saving, setSaving] = useState(false);
+  const [storedUrl, setStoredUrl] = useState("");
+  const [readError, setReadError] = useState("");
+  const readRequest = useRef(0);
+
+  useEffect(() => () => {
+    if (preview.startsWith("blob:")) URL.revokeObjectURL(preview);
+  }, [preview]);
+
+  const fetchCertificates = useCallback(async () => {
+    const requestId = ++readRequest.current;
+    try {
+      const { data, error } = await supabase.from("certificates")
+        .select("*").order("created_at", { ascending: true });
+      if (error) throw error;
+      if (requestId !== readRequest.current) return;
+      setCertificates(data || []);
+      setReadError("");
+    } catch {
+      if (requestId === readRequest.current) setReadError("Lecture indisponible. Les données déjà chargées sont conservées.");
+    } finally {
+      if (requestId === readRequest.current) setLoading(false);
+    }
+  }, [setCertificates]);
 
   useEffect(() => {
-    fetchCertificates();
+    const timer = window.setTimeout(() => void fetchCertificates(), 0);
 
     const channel = supabase
       .channel("certificates-realtime")
@@ -40,26 +66,19 @@ export default function CertificatesPage() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      window.clearTimeout(timer);
+      readRequest.current += 1;
+      void supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchCertificates]);
 
-  async function fetchCertificates() {
-  const { data } = await supabase
-    .from("certificates")
-    .select("*")
-    .order("created_at", {
-      ascending: true,
-    });
 
-  setCertificates(data || []);
-  setLoading(false);
-};
 
   const resetForm = () => {
     setTitle("");
     setImage(null);
     setPreview("");
+    setStoredUrl("");
     setEditId(null);
   };
 
@@ -73,50 +92,32 @@ export default function CertificatesPage() {
   };
 
   const handleSave = async () => {
-    if (!title.trim()) return;
-
+    if (!title.trim() || saving) return;
     setSaving(true);
-
-    let imageUrl = preview;
-
-    if (image) {
-      const fileName = `certificate-${Date.now()}-${image.name}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("certificates")
-        .upload(fileName, image);
-
-      if (!uploadError) {
-        const { data } = supabase.storage
-          .from("certificates")
-          .getPublicUrl(fileName);
-
-        imageUrl = data.publicUrl;
-      }
-    }
-
-    if (editId) {
-      await supabase
-        .from("certificates")
-        .update({
-          title,
-          image_url: imageUrl,
-        })
-        .eq("id", editId);
-    } else {
-      await supabase.from("certificates").insert([
-        {
-          title,
-          image_url: imageUrl,
+    try {
+      await saveAdminImageRecord({
+        table: "certificates", bucket: "certificates", imageField: "image_url",
+        labelField: "title", label: title, id: editId,
+        file: image, storedUrl,
+        onConfirmed: (record) => {
+          const confirmed = record as unknown as Certificate;
+          readRequest.current += 1;
+          setLoading(false);
+          setCertificates((previous) => [...previous.filter((item) => item.id !== confirmed.id), confirmed].sort((a, b) => a.created_at.localeCompare(b.created_at)));
         },
-      ]);
+      });
+      void revalidatePortfolio();
+      setOpen(false);
+      resetForm();
+      void fetchCertificates();
+    } catch (error) {
+      await Swal.fire({
+        title: "Échec", text: error instanceof Error ? error.message : "Impossible d'enregistrer.",
+        icon: "error", background: "#111", color: "#fff",
+      });
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
-    setOpen(false);
-    resetForm();
-
-    await fetchCertificates();
   };
 
   const handleDelete = async (id: number) => {
@@ -136,9 +137,15 @@ export default function CertificatesPage() {
 
     if (!result.isConfirmed) return;
 
-    const { error } = await supabase.from("certificates").delete().eq("id", id);
+    let error: unknown;
+    try {
+      const result = await supabase.from("certificates").delete().eq("id", id).select("id").single();
+      error = result.error || (!result.data ? new Error("Élément introuvable") : null);
+    } catch (caught) { error = caught; }
 
     if (!error) {
+      readRequest.current += 1;
+      void revalidatePortfolio();
       setCertificates((prev) => prev.filter((item) => item.id !== id));
 
       Swal.fire({
@@ -164,6 +171,8 @@ export default function CertificatesPage() {
   const handleEdit = (item: Certificate) => {
     setTitle(item.title);
     setPreview(item.image_url);
+    setStoredUrl(item.image_url);
+    setImage(null);
     setEditId(item.id);
     setOpen(true);
   };
@@ -171,7 +180,6 @@ export default function CertificatesPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       {/* SIDEBAR */}
-      <Sidebar />
 
       {/* MAIN */}
       <main className="lg:ml-[250px] min-h-screen px-4 sm:px-6 lg:px-8 pt-[90px] lg:pt-6 pb-6">
@@ -199,6 +207,7 @@ export default function CertificatesPage() {
           </div>
 
           {/* CONTENT */}
+          {readError && <p role="alert" className="mb-4 text-sm text-amber-200">{readError} <button type="button" className="underline" onClick={() => void fetchCertificates()}>Réessayer</button></p>}
           {loading ? (
             <div className="text-white/50 text-sm">Chargement des certificats...</div>
           ) : certificates.length === 0 ? (

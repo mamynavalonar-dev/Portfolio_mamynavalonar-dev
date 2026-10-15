@@ -1,0 +1,17 @@
+.section { max-width: 1320px; margin: 0 auto; padding: 22px 60px 42px; }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.title { font: 12px 'DM Mono', monospace; color: var(--text-secondary); letter-spacing: .08em; text-transform: uppercase; }
+.viewport { overflow: hidden; padding: 4px 0; mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); }
+.track { display: flex; width: max-content; animation: technology-scroll var(--marquee-duration, 120s) linear infinite; animation-play-state: paused; }
+.track[data-running='true'] { animation-play-state: running; }
+.viewport:focus-within .track, .viewport:active .track { animation-play-state: paused; }
+@media (hover: hover) { .viewport:hover .track { animation-play-state: paused; } }
+.group { display: flex; gap: 14px; padding-right: 14px; flex: none; }
+.item { display: flex; align-items: center; justify-content: center; gap: 12px; min-width: 150px; padding: 15px 20px; border: 1px solid var(--border); border-radius: 12px; background: #141414; font-size: 14px; white-space: nowrap; }
+.logo { width: 30px; height: 30px; flex: none; display: grid; place-items: center; }
+.logo img { width: 30px; height: 30px; object-fit: contain; }
+@keyframes technology-scroll { to { transform: translateX(-50%); } }
+@media (max-width: 768px) { .section { padding: 12px 20px 30px; } .title { font-size: 10px; letter-spacing: .04em; } .item { min-width: 135px; padding: 13px 16px; font-size: 13px; } }
+@media (prefers-reduced-motion: reduce) {
+  .track { animation: none; } .viewport { overflow-x: auto; mask-image: none; } .group[aria-hidden='true'], .item[aria-hidden='true'] { display: none; }
+}

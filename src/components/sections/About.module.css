@@ -8,3 +8,17 @@
     font-size: clamp(1.25rem, 6.3vw, 2rem);
   }
 }
+
+.section { padding: 80px 60px 30px 120px; }
+.row { flex-direction: row; }
+.description { max-width: 490px; }
+.profile { display: flex; }
+.stats { grid-template-columns: repeat(3, 1fr); }
+
+@media (max-width: 767px) {
+  .section { padding: 60px 24px 30px; }
+  .row { flex-direction: column; }
+  .description { max-width: 100%; }
+  .profile { display: none; }
+  .stats { grid-template-columns: 1fr; }
+}

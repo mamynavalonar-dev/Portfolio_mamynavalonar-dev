@@ -9,15 +9,11 @@ import {
 import { Send,
   User,
   Mail,
-  MessageSquare,
-  ArrowUpRight } from "lucide-react";
+  MessageSquare } from "lucide-react";
 
-import {
-  FaLinkedinIn,
-  FaInstagram,
-  FaGithub,
-  FaWhatsapp,
-} from "react-icons/fa";
+import type { SocialContent } from "@/types";
+import { DEFAULT_SOCIAL_CONTENT } from "@/lib/socialDefaults";
+import SocialLinks from "./SocialLinks";
 
 const smoothEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
@@ -36,28 +32,7 @@ const fieldVariants: Variants = {
   },
 };
 
-const socialLinks = [
-  {
-    title: "Instagram",
-    user: "@m1ke_tys.0n",
-    icon: FaInstagram,
-    link: "https://www.instagram.com/m1ke_tys.0n",
-  },
-  {
-    title: "GitHub",
-    user: "@mamynavalonar-dev",
-    icon: FaGithub,
-    link: "https://github.com/mamynavalonar-dev",
-  },
-  {
-    title: "WhatsApp",
-    user: "Me contacter",
-    icon: FaWhatsapp,
-    link: "https://wa.me/qr/CQDLCROVEAG3O1",
-  },
-];
-
-export default function ContactForm() {
+export default function ContactForm({ social = DEFAULT_SOCIAL_CONTENT }: { social?: SocialContent }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -124,7 +99,7 @@ export default function ContactForm() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: -40 }}
+      initial={false}
       whileInView={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.25, ease: smoothEase }}
       viewport={{ once: true, amount: 0.2 }}
@@ -133,7 +108,7 @@ export default function ContactForm() {
       {/* HEADER */}
       <motion.div
         variants={fieldVariants}
-        initial="hidden"
+        initial={false}
         whileInView="show"
         viewport={{ once: true }}
         transition={{ delay: 0.05 }}
@@ -142,7 +117,7 @@ export default function ContactForm() {
 
         <p className="text-sm text-white/50 mb-7">
           N&apos;hésitez pas à me contacter si vous souhaitez collaborer,
-          échanger des idées, ou simplement dire bonjour.
+          échanger des idées, ou simplement dire bonjour. Ce message privé est destiné à Mamy Navalona Antonio et ne sera pas affiché parmi les commentaires.
         </p>
       </motion.div>
 
@@ -168,7 +143,7 @@ export default function ContactForm() {
         {/* NAME */}
         <motion.div
           variants={fieldVariants}
-          initial="hidden"
+          initial={false}
           whileInView="show"
           viewport={{ once: true }}
           transition={{ delay: 0.1 }}
@@ -202,7 +177,7 @@ export default function ContactForm() {
         {/* EMAIL */}
         <motion.div
           variants={fieldVariants}
-          initial="hidden"
+          initial={false}
           whileInView="show"
           viewport={{ once: true }}
           transition={{ delay: 0.16 }}
@@ -235,7 +210,7 @@ export default function ContactForm() {
         {/* MESSAGE */}
         <motion.div
           variants={fieldVariants}
-          initial="hidden"
+          initial={false}
           whileInView="show"
           viewport={{ once: true }}
           transition={{ delay: 0.22 }}
@@ -284,7 +259,7 @@ export default function ContactForm() {
           type="submit"
           disabled={submitting}
           variants={fieldVariants}
-          initial="hidden"
+          initial={false}
           whileInView="show"
           viewport={{ once: true }}
           transition={{ delay: 0.28 }}
@@ -304,98 +279,7 @@ export default function ContactForm() {
         </motion.button>
       </form>
 
-      {/* SOCIAL */}
-      <div className="border-t border-white/10 pt-5 mt-6">
-        <motion.p
-          variants={fieldVariants}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          transition={{ delay: 0.34 }}
-          className="text-sm text-white/55 mb-4"
-        >
-          Retrouvez-moi
-        </motion.p>
-
-        {/* LINKEDIN */}
-        <motion.a
-          href="https://www.linkedin.com/in/mamy-navalona-antonio-rakotoniaina-6aa98820a"
-          target="_blank"
-          rel="noopener noreferrer"
-          variants={fieldVariants}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          transition={{ delay: 0.36 }}
-          whileHover={{
-            scale: 1.05,
-            transition: { duration: 0.12 },
-          }}
-          className="group relative overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-4 mb-3 flex items-center justify-between"
-        >
-          <div className="absolute inset-0 bg-white/[0.04] translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-700 ease-out" />
-
-          <div className="relative z-10 flex items-center gap-3">
-            <FaLinkedinIn />
-
-            <div>
-              <p className="text-sm font-medium">LinkedIn</p>
-              <p className="text-xs text-white/35">Mamy Navalona Antonio</p>
-            </div>
-          </div>
-
-          <div className="relative z-10 opacity-0 group-hover:opacity-100 transition">
-            <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center">
-              <ArrowUpRight size={14} />
-            </div>
-          </div>
-        </motion.a>
-
-        {/* GRID */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {socialLinks.map((item, i) => {
-            const Icon = item.icon;
-
-            return (
-              <motion.a
-                key={i}
-                href={item.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                variants={fieldVariants}
-                initial="hidden"
-                whileInView="show"
-                viewport={{ once: true }}
-                transition={{
-                  delay: 0.42 + i * 0.05,
-                }}
-                whileHover={{
-                  scale: 1.06,
-                  transition: { duration: 0.12 },
-                }}
-                className="group relative overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-3 flex items-center justify-between"
-              >
-                <div className="absolute inset-0 bg-white/[0.04] translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-700 ease-out" />
-
-                <div className="relative z-10 flex items-center gap-3">
-                  <Icon />
-
-                  <div>
-                    <p className="text-sm">{item.title}</p>
-                    <p className="text-[11px] text-white/35">{item.user}</p>
-                  </div>
-                </div>
-
-                <div className="relative z-10 opacity-0 group-hover:opacity-100 transition">
-                  <div className="w-6 h-6 rounded-md bg-white/10 flex items-center justify-center">
-                    <ArrowUpRight size={12} />
-                  </div>
-                </div>
-              </motion.a>
-            );
-          })}
-        </div>
-      </div>
+      <SocialLinks content={social} />
     </motion.div>
   );
 }

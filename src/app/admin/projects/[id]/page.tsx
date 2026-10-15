@@ -1,10 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import Swal from "sweetalert2";
+import { useAdminMemoryCache } from "@/components/admin/AdminDataProvider";
+import { revalidatePortfolio } from "@/lib/revalidatePortfolio";
+import {
+  getProjectImageUrls,
+  prepareExistingProjectImages,
+  replaceProjectImageUrls,
+  uploadPreparedProjectImages,
+  type PreparedProjectImage,
+  type UploadedProjectImage,
+} from "@/lib/projectImages";
 
 import {
   Code2,
@@ -38,8 +48,15 @@ function projectToForm(project: Project): ProjectForm {
 }
 
 export default function ProjectDetailPage() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
+  return <ProjectDetailEditor key={id} id={id} />;
+}
+
+type PreparedImagePreview = PreparedProjectImage & { previewUrl: string };
+
+function ProjectDetailEditor({ id }: { id: string }) {
   const router = useRouter();
+  const cache = useAdminMemoryCache();
 
   const [project, setProject] = useState<Project | null>(null);
   const [editMode, setEditMode] = useState(false);
@@ -57,20 +74,81 @@ export default function ProjectDetailPage() {
   });
   const [currentImage, setCurrentImage] = useState(0);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [readError, setReadError] = useState("");
+  const [imageOperation, setImageOperation] = useState<"preparing" | "saving" | null>(null);
+  const [preparedImages, setPreparedImages] = useState<PreparedImagePreview[]>([]);
+  const [imageNotice, setImageNotice] = useState("");
+  const operationLock = useRef(false);
+  const operationController = useRef<AbortController | null>(null);
+  const ownedPreviews = useRef(new Set<string>());
+  const stagedUploads = useRef(new Map<string, UploadedProjectImage>());
+
+  useEffect(() => {
+    const previews = ownedPreviews.current;
+    return () => {
+      operationController.current?.abort();
+      previews.forEach((url) => URL.revokeObjectURL(url));
+      previews.clear();
+    };
+  }, []);
+
+  const clearPreparedImages = () => {
+    ownedPreviews.current.forEach((url) => URL.revokeObjectURL(url));
+    ownedPreviews.current.clear();
+    stagedUploads.current.clear();
+    setPreparedImages([]);
+    setImageNotice("");
+  };
+
+  const handleOptimizeImages = async () => {
+    if (operationLock.current || !editMode || preparedImages.length) return;
+    operationLock.current = true;
+    const controller = new AbortController();
+    operationController.current = controller;
+    setImageOperation("preparing");
+    setImageNotice("");
+    try {
+      const prepared = await prepareExistingProjectImages(getProjectImageUrls(form), process.env.NEXT_PUBLIC_SUPABASE_URL ?? "", controller.signal);
+      controller.signal.throwIfAborted();
+      const previews: PreparedImagePreview[] = [];
+      try {
+        for (const image of prepared) {
+          const previewUrl = URL.createObjectURL(image.file);
+          ownedPreviews.current.add(previewUrl);
+          previews.push({ ...image, previewUrl });
+        }
+      } catch (error) {
+        previews.forEach(({ previewUrl }) => { URL.revokeObjectURL(previewUrl); ownedPreviews.current.delete(previewUrl); });
+        throw error;
+      }
+      setPreparedImages(previews);
+      const before = prepared.reduce((total, image) => total + image.originalBytes, 0);
+      const after = prepared.reduce((total, image) => total + image.file.size, 0);
+      setImageNotice(prepared.length ? `${prepared.length} image(s) préparée(s) : ${(before / 1048576).toFixed(2)} Mio → ${(after / 1048576).toFixed(2)} Mio. Vérifiez l'aperçu, puis Enregistrer pour publier.` : "Ces images sont déjà aussi légères que les versions préparées. Aucun remplacement nécessaire.");
+    } catch (error) {
+      if (!controller.signal.aborted) setImageNotice(error instanceof Error ? error.message : "La préparation des images a échoué. Réessayez.");
+    } finally {
+      operationLock.current = false;
+      if (!controller.signal.aborted) setImageOperation(null);
+    }
+  };
 
     const fetchProject = useCallback(async () => {
-    const { data } = await supabase
+    try {
+    const { data, error } = await supabase
       .from("projects")
       .select("*")
       .eq("id", id)
       .single();
 
+    if (error) throw error;
     if (data) {
+      setReadError("");
       const normalizedProject = normalizeProject(data);
       setProject(normalizedProject);
       setForm(projectToForm(normalizedProject));
     }
-  
+    } catch { setReadError("Le projet ne peut pas être chargé. Réessayez."); }
   }, [id]);
 
 useEffect(() => {
@@ -99,9 +177,12 @@ useEffect(() => {
 
   if (!result.isConfirmed) return;
 
-  const { error } = await supabase.from("projects").delete().eq("id", id);
+  try {
+  const { data: confirmed, error } = await supabase.from("projects").delete().eq("id", id).select("id").single();
 
-  if (!error) {
+  if (!error && confirmed) {
+    cache.updateMatching("projects", (value) => (value as Project[]).filter((item) => item.id !== id));
+    void revalidatePortfolio();
     await Swal.fire({
       title: "Terminé !",
       text: "Le projet a bien été supprimé.",
@@ -122,62 +203,59 @@ useEffect(() => {
       color: "#fff",
     });
   }
+  } catch { await Swal.fire({ title: "Échec", text: "L’opération n’a pas été confirmée. Réessayez.", icon: "error", background: "#101010", color: "#fff" }); }
 };
 
   const handleUpdate = async () => {
-  const technologies = toStringList(form.technologies);
-  const keyFeatures = toStringList(form.key_features);
-  const updates = {
-    title: form.title,
-    description: form.description,
-    technologies,
-    key_features: keyFeatures,
-    image_url: form.image_url,
-    image_urls: form.image_urls,
-    live_url: form.live_url || null,
-    github_url: form.github_url || null,
+    if (operationLock.current) return;
+    operationLock.current = true;
+    const controller = new AbortController();
+    operationController.current = controller;
+    setImageOperation("saving");
+    try {
+      const uploaded = await uploadPreparedProjectImages(preparedImages, supabase.storage.from("projects"), stagedUploads.current, controller.signal);
+      controller.signal.throwIfAborted();
+      const imageForm = replaceProjectImageUrls(form, uploaded);
+      const technologies = toStringList(form.technologies);
+      const keyFeatures = toStringList(form.key_features);
+      const updates = {
+        title: form.title,
+        description: form.description,
+        technologies,
+        key_features: keyFeatures,
+        image_url: imageForm.image_url,
+        image_urls: imageForm.image_urls,
+        live_url: form.live_url || null,
+        github_url: form.github_url || null,
+      };
+      const { data: confirmed, error } = await supabase.from("projects").update(updates).eq("id", id).select("id").single();
+      if (error || !confirmed) throw new Error("L'enregistrement n'a pas été confirmé. Réessayez ; les images d'origine sont conservées.");
+      controller.signal.throwIfAborted();
+      const updatedProject = normalizeProject({ id: form.id, created_at: form.created_at, ...updates });
+      setProject(updatedProject);
+      cache.updateMatching("projects", (value) => (value as Project[]).map((item) => item.id === id ? updatedProject : item));
+      setForm((current) => ({ ...current, ...updates, technologies: listToInput(technologies), key_features: listToInput(keyFeatures) }));
+      clearPreparedImages();
+      setEditMode(false);
+      void revalidatePortfolio();
+      if (controller.signal.aborted) return;
+      await Swal.fire({
+        title: "Terminé",
+        text: "Le projet est enregistré. Le portfolio public est en cours d’actualisation.",
+        icon: "success", timer: 1800, showConfirmButton: false, background: "#101010", color: "#fff",
+      });
+    } catch (error) {
+      if (!controller.signal.aborted) await Swal.fire({ title: "Échec", text: error instanceof Error ? error.message : "L’opération n’a pas été confirmée. Réessayez.", icon: "error", background: "#101010", color: "#fff" });
+    } finally {
+      operationLock.current = false;
+      if (!controller.signal.aborted) setImageOperation(null);
+    }
   };
+  if (readError && !project) return <div className="min-h-screen bg-black text-white p-8"><p role="alert">{readError}</p><button type="button" onClick={() => void fetchProject()} className="mt-4 underline">Réessayer</button></div>;
 
-  const { error } = await supabase
-    .from("projects")
-    .update(updates)
-    .eq("id", id);
-
-  if (!error) {
-    setProject({
-      id: form.id,
-      created_at: form.created_at,
-      ...updates,
-    });
-    setForm((current) => ({
-      ...current,
-      technologies: listToInput(technologies),
-      key_features: listToInput(keyFeatures),
-    }));
-    setEditMode(false);
-
-    Swal.fire({
-      title: "Terminé",
-      text: "Le projet a bien été mis à jour.",
-      icon: "success",
-      timer: 1800,
-      showConfirmButton: false,
-      background: "#101010",
-      color: "#fff",
-    });
-  } else {
-    Swal.fire({
-      title: "Échec",
-      text: "La mise à jour du projet a échoué.",
-      icon: "error",
-      background: "#101010",
-      color: "#fff",
-    });
-  }
-};
   if (!project)
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-white">
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-white pt-[95px] lg:ml-[250px] lg:pt-8">
         Chargement...
       </div>
     );
@@ -185,12 +263,8 @@ useEffect(() => {
   const tech = toStringList(form.technologies);
   const features = toStringList(form.key_features);
 
-  const galleryImages =
-    project.image_urls && Array.isArray(project.image_urls)
-      ? project.image_urls
-      : project.image_url
-        ? [project.image_url]
-        : [];
+  const previewBySource = new Map(preparedImages.map((image) => [image.sourceUrl, image.previewUrl]));
+  const galleryImages = getProjectImageUrls(editMode ? form : project).map((url) => previewBySource.get(url) ?? url);
 
   const nextImage = () => {
     if (currentImage < galleryImages.length - 1) {
@@ -205,7 +279,7 @@ useEffect(() => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white px-4 sm:px-6 md:px-8 lg:px-12 py-5 md:py-8">
+    <div className="min-h-screen bg-[#0a0a0a] text-white px-4 sm:px-6 md:px-8 lg:ml-[250px] lg:px-12 pt-[95px] lg:pt-8 pb-5 md:pb-8">
       {/* LIGHTBOX */}
       <AnimatePresence>
         {previewOpen && (
@@ -259,6 +333,7 @@ useEffect(() => {
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.4 }}
         onClick={() => router.back()}
+        disabled={imageOperation !== null}
         className="inline-flex items-center gap-2 text-sm text-white/50 hover:text-white transition mb-6"
       >
         <ArrowLeft size={14} />
@@ -277,6 +352,7 @@ useEffect(() => {
           {editMode ? (
             <input
               value={form.title}
+              disabled={imageOperation === "saving"}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               className="text-2xl md:text-4xl font-bold bg-transparent border-b border-white/15 w-full outline-none mb-3"
             />
@@ -291,6 +367,7 @@ useEffect(() => {
           {editMode ? (
             <textarea
               value={form.description}
+              disabled={imageOperation === "saving"}
               onChange={(e) =>
                 setForm({
                   ...form,
@@ -343,6 +420,7 @@ useEffect(() => {
             {editMode ? (
               <input
                 value={form.live_url || ""}
+                disabled={imageOperation === "saving"}
                 onChange={(e) =>
                   setForm({
                     ...form,
@@ -371,6 +449,7 @@ useEffect(() => {
             {editMode ? (
               <input
                 value={form.github_url || ""}
+                disabled={imageOperation === "saving"}
                 onChange={(e) =>
                   setForm({
                     ...form,
@@ -407,6 +486,7 @@ useEffect(() => {
             {editMode ? (
               <input
                 value={form.technologies}
+                disabled={imageOperation === "saving"}
                 onChange={(e) =>
                   setForm({
                     ...form,
@@ -438,6 +518,23 @@ useEffect(() => {
           className="w-full"
         >
           {/* GALLERY */}
+          {editMode && getProjectImageUrls(form).length > 0 && (
+            <div className="mb-5 rounded-2xl border border-white/10 bg-[#101010] p-4 xl:max-w-[520px] xl:ml-auto">
+              <button
+                type="button"
+                onClick={() => void handleOptimizeImages()}
+                disabled={imageOperation !== null || preparedImages.length > 0}
+                className="w-full rounded-xl border border-white/15 px-4 py-3 text-sm hover:bg-white/5 disabled:cursor-wait disabled:opacity-60"
+              >
+                {imageOperation === "preparing" ? "Préparation des images…" : "Optimiser les images enregistrées"}
+              </button>
+              <p className="mt-2 text-xs leading-relaxed text-white/60">Prépare des versions plus légères à vérifier dans l&apos;aperçu. Enregistrer publie les nouvelles images ; les originaux restent conservés.</p>
+              {preparedImages.length > 0 && (
+                <button type="button" onClick={clearPreparedImages} disabled={imageOperation !== null} className="mt-3 text-xs text-white/70 underline disabled:opacity-60">Annuler l&apos;optimisation des images</button>
+              )}
+              {imageNotice && <p role="status" className="mt-3 text-xs leading-relaxed text-white/80">{imageNotice}</p>}
+            </div>
+          )}
           {galleryImages.length > 0 && (
             <div className="mb-6 xl:max-w-[520px] xl:ml-auto">
               <div className="relative rounded-[28px] overflow-hidden border border-white/10 bg-[#101010] shadow-[0_0_40px_rgba(255,255,255,0.03)]">
@@ -512,6 +609,7 @@ useEffect(() => {
             {editMode ? (
               <textarea
                 value={form.key_features}
+                disabled={imageOperation === "saving"}
                 onChange={(e) =>
                   setForm({
                     ...form,
@@ -541,16 +639,19 @@ useEffect(() => {
           <>
             <button
               onClick={handleUpdate}
+              disabled={imageOperation !== null}
               className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-white text-black font-medium hover:opacity-90 transition"
             >
-              Enregistrer
+              {imageOperation === "saving" ? "Enregistrement…" : "Enregistrer"}
             </button>
 
             <button
               onClick={() => {
+                clearPreparedImages();
                 setForm(projectToForm(project));
                 setEditMode(false);
               }}
+              disabled={imageOperation !== null}
               className="w-full sm:w-auto px-5 py-3 rounded-2xl border border-white/10 hover:bg-white/5 transition"
             >
               Annuler

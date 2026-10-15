@@ -91,6 +91,7 @@ export default function PortfolioModal({
                       className="w-full h-full"
                     >
                       <ResponsiveImage
+                        sizes="(max-width: 639px) calc(100vw - 58px), (max-width: 947px) calc(100vw - 82px), 866px"
                         src={activeImage}
                         alt={`${project.title} — aperçu ${safeImageIndex + 1}`}
                         className="w-full h-full object-cover"
@@ -138,6 +139,9 @@ export default function PortfolioModal({
                       aria-pressed={index === safeImageIndex}
                     >
                       <ResponsiveImage
+                        sizes="88px"
+                        width={176}
+                        height={120}
                         src={image}
                         alt=""
                         className="w-full h-full object-cover"

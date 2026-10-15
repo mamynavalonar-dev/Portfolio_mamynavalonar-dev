@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Sidebar from "@/app/admin/Sidebar";
+import useAdminCachedState from "@/hooks/useAdminCachedState";
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { PortfolioComment } from "@/types";
 import {
@@ -14,25 +15,22 @@ import {
 } from "lucide-react";
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState({
+  const [stats, setStats, hasStats] = useAdminCachedState("dashboard:stats", {
     projects: 0,
     certificates: 0,
     comments: 0,
     pinned: 0,
   });
 
-  const [recentComments, setRecentComments] = useState<PortfolioComment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [recentComments, setRecentComments, hasComments] = useAdminCachedState<PortfolioComment[]>("dashboard:comments", []);
+  const [loading, setLoading] = useState(() => !hasStats() || !hasComments());
+  const [readError, setReadError] = useState("");
+  const readRequest = useRef(0);
+  const [hasLoaded, setHasLoaded] = useState(() => hasStats() && hasComments());
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void fetchDashboard();
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  async function fetchDashboard() {
+  const fetchDashboard = useCallback(async () => {
+    const requestId = ++readRequest.current;
+    setLoading(!hasStats() || !hasComments());
     try {
       const [
         projectsRes,
@@ -79,6 +77,10 @@ export default function DashboardPage() {
           .limit(30),
       ]);
 
+      if ([projectsRes, certificatesRes, commentsRes, pinnedRes, recentCommentsRes].some((result) => result.error)) throw new Error("Lecture indisponible");
+      if ([projectsRes, certificatesRes, commentsRes, pinnedRes].some((result) => typeof result.count !== "number")) throw new Error("Compteur indisponible");
+      if (requestId !== readRequest.current) return;
+      setReadError("");
       setStats({
         projects: projectsRes.count || 0,
         certificates: certificatesRes.count || 0,
@@ -87,12 +89,24 @@ export default function DashboardPage() {
       });
 
       setRecentComments(recentCommentsRes.data || []);
+      setHasLoaded(true);
     } catch (err) {
       console.error("Erreur de récupération du tableau de bord :", err);
+      if (requestId === readRequest.current) setReadError("Statistiques indisponibles. Les dernières valeurs chargées sont conservées.");
+    } finally {
+      if (requestId === readRequest.current) setLoading(false);
     }
+  }, [hasStats, hasComments, setStats, setRecentComments]);
 
-    setLoading(false);
-  };
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchDashboard();
+    }, 0);
+
+    return () => { window.clearTimeout(timer); readRequest.current += 1; };
+  }, [fetchDashboard]);
+
+
 
   const cards = [
     {
@@ -119,7 +133,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white overflow-hidden">
-      <Sidebar />
 
       <main className="lg:ml-[250px] pt-[95px] lg:pt-6 min-h-screen px-4 sm:px-6 lg:px-8 pb-8">
         <div className="max-w-[1400px] mx-auto">
@@ -147,6 +160,7 @@ export default function DashboardPage() {
             </button>
           </div>
 
+          {readError && <p role="alert" className="mb-4 text-sm text-amber-200">{readError}</p>}
           {/* TOP CARDS */}
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
             {cards.map((card, i) => {
@@ -164,7 +178,7 @@ export default function DashboardPage() {
                       </p>
 
                       <h2 className="text-[24px] sm:text-[26px] font-bold leading-none">
-                        {loading ? "..." : card.value}
+                        {loading ? "..." : hasLoaded ? card.value : "—"}
                       </h2>
                     </div>
 

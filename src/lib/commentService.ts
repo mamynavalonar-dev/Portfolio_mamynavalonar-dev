@@ -10,8 +10,8 @@ async function readPayload(response: Response) {
   };
 }
 
-export async function fetchCommentsService() {
-  const response = await fetch("/api/comments", { cache: "no-store" });
+export async function fetchCommentsService(signal?: AbortSignal) {
+  const response = await fetch("/api/comments", { cache: "no-store", signal });
   const payload = await readPayload(response);
 
   if (!response.ok || !payload.ok) {

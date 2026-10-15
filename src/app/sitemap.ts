@@ -14,13 +14,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     {
       url: baseUrl,
-      lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 1,
     },
     ...portfolio.projects.map((project) => ({
       url: `${baseUrl}/portfolio/${project.id}`,
-      lastModified: new Date(project.created_at),
+      lastModified: new Date(project.updated_at || project.created_at),
       changeFrequency: "monthly" as const,
       priority: 0.8,
     })),

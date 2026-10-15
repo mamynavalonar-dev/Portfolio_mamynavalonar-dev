@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import ResponsiveImage from '@/components/ui/ResponsiveImage'
+import { PROJECT_DETAIL_IMAGE_SIZES } from '@/lib/imageSizes'
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
 import useDialogFocus from '@/hooks/useDialogFocus'
 import { Project } from '@/types'
@@ -24,7 +26,6 @@ export default function ProjectDetailClient({
 }: {
   initialProject: Project
 }) {
-  const router = useRouter()
 
   const [project] = useState<Project>(initialProject)
 
@@ -52,10 +53,6 @@ export default function ProjectDetailClient({
     if (currentImage > 0) {
       setCurrentImage((prev) => prev - 1)
     }
-  }
-
-  const handleBack = () => {
-    router.push('/#portfolio')
   }
 
   return (
@@ -95,19 +92,19 @@ export default function ProjectDetailClient({
               </button>
             )}
 
-            <motion.img
+            <motion.div
               key={currentImage}
               initial={{ opacity: 0, x: 80 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -80 }}
-              transition={{
-                duration: 0.6,
-                ease: [0.22, 1, 0.36, 1],
-              }}
-              src={galleryImages[currentImage]}
-              alt={`${project.title} — image ${currentImage + 1}`}
-              className="max-w-[85vw] max-h-[80vh] rounded-3xl object-contain"
-            />
+              transition={{ duration: 0.3 }}
+            >
+              <ResponsiveImage
+                src={galleryImages[currentImage]}
+                alt={`${project.title} — image ${currentImage + 1}`}
+                sizes="85vw" width={1600} height={1200}
+                className="max-w-[85vw] max-h-[80vh] w-auto h-auto rounded-3xl object-contain"
+              />
+            </motion.div>
 
             {currentImage < galleryImages.length - 1 && (
               <button
@@ -123,7 +120,7 @@ export default function ProjectDetailClient({
       </AnimatePresence>
 
       <motion.div
-        initial={{ opacity: 0 }}
+        initial={false}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6 }}
         className="min-h-screen text-white px-6 md:px-10 lg:px-16 py-8 relative overflow-hidden"
@@ -136,7 +133,7 @@ export default function ProjectDetailClient({
         <div className="grid lg:grid-cols-[1fr_0.85fr] gap-10 items-start">
           {/* LEFT */}
           <motion.div
-            initial={{ opacity: 0, x: -80 }}
+            initial={false}
             animate={{ opacity: 1, x: 0 }}
             transition={{
               duration: 0.95,
@@ -146,7 +143,7 @@ export default function ProjectDetailClient({
           >
             {/* BACK + TITLE */}
             <motion.div
-              initial={{ opacity: 0, x: -70 }}
+              initial={false}
               animate={{ opacity: 1, x: 0 }}
               transition={{
                 duration: 1,
@@ -154,16 +151,17 @@ export default function ProjectDetailClient({
               }}
               className="mb-8"
             >
-              <button
-                onClick={handleBack}
+              <Link
+                href="/#portfolio"
+                prefetch={false}
                 className="inline-flex items-center gap-2 text-[13px] text-white/50 hover:text-white transition-all duration-300 mb-6"
               >
                 <ArrowLeft size={14} />
                 Retour
-              </button>
+              </Link>
 
               <motion.h1
-                initial={{ opacity: 0, x: -40 }}
+                initial={false}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{
                   duration: 0.9,
@@ -176,7 +174,7 @@ export default function ProjectDetailClient({
               </motion.h1>
 
               <motion.div
-                initial={{ width: 0, x: -20 }}
+                initial={false}
                 animate={{ width: 65, x: 0 }}
                 transition={{
                   duration: 0.9,
@@ -188,7 +186,7 @@ export default function ProjectDetailClient({
             </motion.div>
 
             <motion.p
-              initial={{ opacity: 0, x: 40 }}
+              initial={false}
               animate={{ opacity: 1, x: 0 }}
               transition={{
                 duration: 0.8,
@@ -202,7 +200,7 @@ export default function ProjectDetailClient({
 
             {/* STATS */}
             <motion.div
-              initial={{ opacity: 0, x: -60 }}
+              initial={false}
               animate={{ opacity: 1, x: 0 }}
               transition={{
                 duration: 0.85,
@@ -244,7 +242,7 @@ export default function ProjectDetailClient({
 
             {/* BUTTONS */}
             <motion.div
-              initial={{ opacity: 0, x: 55 }}
+              initial={false}
               animate={{ opacity: 1, x: 0 }}
               transition={{
                 duration: 0.8,
@@ -291,7 +289,7 @@ export default function ProjectDetailClient({
             {/* TECH */}
             {/* TECH */}
 <motion.div
-  initial={{ opacity: 0 }}
+  initial={false}
   animate={{ opacity: 1 }}
   transition={{
     duration: 0.8,
@@ -310,7 +308,7 @@ export default function ProjectDetailClient({
   {tech.map((t: string, i: number) => (
     <motion.div
   key={i}
-  initial={{ opacity: 0 }}
+  initial={false}
   animate={{ opacity: 1 }}
   transition={{
     delay: 0.12 + i * 0.04,
@@ -329,7 +327,7 @@ export default function ProjectDetailClient({
 
           {/* RIGHT */}
 <motion.div
-  initial={{ opacity: 0, x: 80 }}
+  initial={false}
   animate={{ opacity: 1, x: 0 }}
   transition={{
     duration: 1,
@@ -340,7 +338,7 @@ export default function ProjectDetailClient({
             {/* IMAGE */}
             {galleryImages.length > 0 && (
               <motion.div
-                initial={{ opacity: 0, x: 55 }}
+                initial={false}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{
                   duration: 0.85,
@@ -350,28 +348,22 @@ export default function ProjectDetailClient({
                 className="mb-5"
               >
                 <div className="relative rounded-[26px] overflow-hidden border border-white/10 bg-gradient-to-br from-[#111] to-[#171717] max-w-[560px] mx-auto">
-                  <motion.img
-                    key={currentImage}
-                    initial={{ opacity: 0, x: 60 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{
-                      duration: 0.6,
-                      ease: [0.22, 1, 0.36, 1],
-                    }}
-                    src={galleryImages[currentImage]}
-                    alt={`${project.title} — image ${currentImage + 1}`}
-                    role="button"
-                    tabIndex={0}
+                  <button
+                    type="button"
                     aria-label={`Agrandir l'image ${currentImage + 1} du projet ${project.title}`}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        setPreviewOpen(true);
-                      }
-                    }}
                     onClick={() => setPreviewOpen(true)}
-                    className="w-full h-[220px] md:h-[250px] object-cover cursor-pointer"
-                  />
+                    className="block w-full cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+                  >
+                    <ResponsiveImage
+                      key={currentImage}
+                      src={galleryImages[currentImage]}
+                      alt={`${project.title} — image ${currentImage + 1}`}
+                      sizes={PROJECT_DETAIL_IMAGE_SIZES}
+                      width={1120} height={630}
+                      preload={currentImage === 0}
+                      className="w-full h-[220px] md:h-[250px] object-cover"
+                    />
+                  </button>
 
                   {currentImage > 0 && (
                     <button
@@ -401,10 +393,7 @@ export default function ProjectDetailClient({
                         key={i}
                         aria-label={`Afficher l'image ${i + 1}`}
                         aria-pressed={currentImage === i}
-                        initial={{
-                          opacity: 0,
-                          x: i % 2 === 0 ? -10 : 10,
-                        }}
+                        initial={false}
                         animate={{
                           opacity: 1,
                           x: 0,
@@ -414,12 +403,11 @@ export default function ProjectDetailClient({
                           duration: 0.45,
                         }}
                         onClick={() => setCurrentImage(i)}
-                        className={`rounded-full transition-all duration-300 ${
-                          currentImage === i
-                            ? 'w-6 h-1.5 bg-white'
-                            : 'w-1.5 h-1.5 bg-white/30'
-                        }`}
-                      />
+                        type="button"
+                        className="flex w-11 h-11 items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+                      >
+                        <span aria-hidden="true" className={`block rounded-full transition-all duration-300 ${currentImage === i ? 'w-6 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/30'}`} />
+                      </motion.button>
                     ))}
                   </div>
                 )}
@@ -428,7 +416,7 @@ export default function ProjectDetailClient({
 
             {/* FEATURES */}
             <motion.div
-              initial={{ opacity: 0, x: -55 }}
+              initial={false}
               animate={{ opacity: 1, x: 0 }}
               transition={{
                 duration: 0.9,
@@ -447,10 +435,7 @@ export default function ProjectDetailClient({
                 {features.map((f: string, i: number) => (
                   <motion.li
                     key={i}
-                    initial={{
-                      opacity: 0,
-                      x: i % 2 === 0 ? 30 : -30,
-                    }}
+                    initial={false}
                     animate={{
                       opacity: 1,
                       x: 0,

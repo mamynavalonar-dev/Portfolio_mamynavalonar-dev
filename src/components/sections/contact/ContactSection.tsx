@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import ContactForm from "./ContactForm";
 import CommentsSection from "./CommentsSection";
+import type { SocialContent } from "@/types";
 
 const smoothEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
@@ -12,7 +13,7 @@ const viewport = {
   margin: "-40px",
 };
 
-export default function ContactSection() {
+export default function ContactSection({ social }: { social?: SocialContent }) {
   return (
     <section
       id="contact"
@@ -23,7 +24,7 @@ export default function ContactSection() {
       text-white"
     >
       <motion.div
-        initial={{ opacity: 0, y: 42, scale: 0.985 }}
+        initial={false}
         whileInView={{ opacity: 1, y: 0, scale: 1 }}
         viewport={viewport}
         transition={{
@@ -33,7 +34,7 @@ export default function ContactSection() {
         className="text-center mb-12 sm:mb-14 lg:mb-16"
       >
         <motion.h2
-          initial={{ opacity: 0, y: 28 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={viewport}
           transition={{
@@ -46,7 +47,7 @@ export default function ContactSection() {
         </motion.h2>
 
         <motion.p
-          initial={{ opacity: 0, y: 22 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={viewport}
           transition={{
@@ -70,7 +71,7 @@ export default function ContactSection() {
       "
       >
         <motion.div
-          initial={{ opacity: 0, x: -42, y: 18 }}
+          initial={false}
           whileInView={{ opacity: 1, x: 0, y: 0 }}
           viewport={viewport}
           transition={{
@@ -79,11 +80,11 @@ export default function ContactSection() {
           }}
           className="w-full"
         >
-          <ContactForm />
+          <ContactForm social={social} />
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, x: 42, y: 18 }}
+          initial={false}
           whileInView={{ opacity: 1, x: 0, y: 0 }}
           viewport={viewport}
           transition={{
@@ -98,7 +99,7 @@ export default function ContactSection() {
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 18 }}
+        initial={false}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: false, amount: 0.6 }}
         transition={{

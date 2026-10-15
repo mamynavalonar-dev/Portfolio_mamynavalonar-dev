@@ -152,4 +152,23 @@ describe("public write protections", () => {
     expect(response.status).toBe(413);
     expect(mocks.upload).not.toHaveBeenCalled();
   });
+  it("keeps a comment image after a transport error returned by the submission RPC", async () => {
+    mocks.rpc.mockImplementation(async (name: string) => ({ data: null, error: name === "submit_comment" ? { message: "fetch failed", code: "" } : null }));
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try { expect((await postComment(imageCommentRequest())).status).toBe(500); expect(mocks.remove).not.toHaveBeenCalled(); }
+    finally { log.mockRestore(); }
+  });
+  it("does not confirm a comment without a returned record", async () => {
+    mocks.rpc.mockResolvedValue({ data: null, error: null });
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try { expect((await postComment(imageCommentRequest())).status).toBe(500); expect(mocks.remove).not.toHaveBeenCalled(); }
+    finally { log.mockRestore(); }
+  });
+  it("keeps the explicit rate-limit response even if safe cleanup throws", async () => {
+    mocks.rpc.mockImplementation(async (name: string) => ({ data: null, error: name === "submit_comment" ? { message: "COMMENT_RATE_LIMIT" } : null }));
+    mocks.remove.mockRejectedValue(new Error("storage unavailable"));
+    const log = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try { expect((await postComment(imageCommentRequest())).status).toBe(429); }
+    finally { log.mockRestore(); }
+  });
 });

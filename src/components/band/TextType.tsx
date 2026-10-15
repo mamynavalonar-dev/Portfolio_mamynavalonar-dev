@@ -30,6 +30,7 @@ interface TextTypeProps {
   onSentenceComplete?: (sentence: string, index: number) => void;
   startOnVisible?: boolean;
   reverseMode?: boolean;
+  active?: boolean;
 }
 
 const TextType = ({
@@ -51,11 +52,13 @@ const TextType = ({
   onSentenceComplete,
   startOnVisible = false,
   reverseMode = false,
+  active = true,
   ...props
 }: TextTypeProps & React.HTMLAttributes<HTMLElement>) => {
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
-  const [displayedText, setDisplayedText] = useState('');
-  const [currentCharIndex, setCurrentCharIndex] = useState(0);
+  const firstText = Array.isArray(text) ? text[0] ?? '' : text;
+  const [displayedText, setDisplayedText] = useState(() => active ? '' : firstText);
+  const [currentCharIndex, setCurrentCharIndex] = useState(() => active ? 0 : firstText.length);
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
   const [isVisible, setIsVisible] = useState(!startOnVisible);
@@ -94,7 +97,7 @@ const TextType = ({
   }, [startOnVisible]);
 
   useEffect(() => {
-    if (!isVisible || reducedMotion || textArray.length === 0) return;
+    if (!active || !isVisible || reducedMotion || textArray.length === 0) return;
 
     let timeout: ReturnType<typeof setTimeout>;
 
@@ -174,6 +177,7 @@ const TextType = ({
     onSentenceComplete,
     getRandomSpeed,
     reducedMotion,
+    active,
   ]);
 
   const shouldHideCursor =
@@ -193,7 +197,7 @@ const TextType = ({
     >
       {reducedMotion ? textArray[0] : displayedText}
     </span>,
-    showCursor && !reducedMotion && (
+    showCursor && active && !reducedMotion && (
       <span
         className={`ml-1 inline-block opacity-100 ${
           shouldHideCursor ? 'hidden' : ''

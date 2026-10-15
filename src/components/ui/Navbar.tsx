@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 
-const navItems = [
-  { label: "Accueil", id: "home" },
-  { label: "À propos", id: "about" },
-  { label: "Portfolio", id: "portfolio" },
-  { label: "Contact", id: "contact" },
-];
-
-export default function Navbar() {
+export default function Navbar({ hasServices = false, hasJourney = false }: { hasServices?: boolean; hasJourney?: boolean }) {
+  const navItems = useMemo(() => [
+    { label: "Accueil", id: "home" },
+    { label: "À propos", id: "about" },
+    ...(hasServices ? [{ label: "Services", id: "services" }] : []),
+    ...(hasJourney ? [{ label: "Parcours", id: "qualifications" }] : []),
+    { label: "Portfolio", id: "portfolio" },
+    { label: "Contact", id: "contact" },
+  ], [hasServices, hasJourney]);
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
@@ -21,23 +22,6 @@ export default function Navbar() {
     const updateFromScroll = () => {
       frameRef.current = null;
       setScrolled(window.scrollY > 20);
-
-      const marker = 120;
-      let current = "home";
-
-      for (const item of navItems) {
-        const section = document.getElementById(item.id);
-        if (!section) continue;
-        const rect = section.getBoundingClientRect();
-        if (rect.top <= marker && rect.bottom >= marker) {
-          current = item.id;
-          break;
-        }
-      }
-
-      setActiveSection((previous) =>
-        previous === current ? previous : current,
-      );
     };
 
     const scheduleUpdate = () => {
@@ -54,7 +38,33 @@ export default function Navbar() {
       window.removeEventListener("resize", scheduleUpdate);
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
     };
-  }, []);
+  }, [navItems]);
+
+  useEffect(() => {
+    let observer: IntersectionObserver;
+    const observeSections = () => {
+      observer?.disconnect();
+      const marker = Math.min(120, Math.max(0, window.innerHeight - 1));
+      observer = new IntersectionObserver((entries) => {
+        const entry = entries.find((item) => item.isIntersecting);
+        if (entry) setActiveSection(entry.target.id);
+      }, { rootMargin: `-${marker}px 0px -${Math.max(0, window.innerHeight - marker - 1)}px 0px`, threshold: 0 });
+      for (const item of navItems) {
+        const section = document.getElementById(item.id);
+        if (section) observer.observe(section);
+      }
+    };
+    observeSections();
+    window.addEventListener("resize", observeSections, { passive: true });
+    return () => { observer.disconnect(); window.removeEventListener("resize", observeSections); };
+  }, [navItems]);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
 
   const goToSection = (
     event: React.MouseEvent<HTMLAnchorElement>,
@@ -97,7 +107,7 @@ export default function Navbar() {
           mamynavalonar-dev
         </a>
 
-        <div className="hidden items-center gap-10 md:flex">
+        <div className="hidden items-center gap-6 lg:flex xl:gap-9">
           {navItems.map((item) => {
             const isActive = activeSection === item.id;
 
@@ -129,8 +139,9 @@ export default function Navbar() {
           type="button"
           aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
           aria-expanded={open}
+          aria-controls="mobile-navigation"
           onClick={() => setOpen((value) => !value)}
-          className="flex h-8 w-8 items-center justify-center text-[var(--text-primary)] md:hidden"
+          className="flex h-11 w-11 items-center justify-center text-[var(--text-primary)] lg:hidden"
         >
           {open ? <X size={20} /> : <Menu size={20} />}
         </button>
@@ -139,11 +150,12 @@ export default function Navbar() {
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
+            id="mobile-navigation"
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.16 }}
-            className="glass-panel mt-2 overflow-hidden rounded-2xl bg-[var(--glass-bg-scrolled)] p-2 md:hidden"
+            className="glass-panel mt-2 overflow-hidden rounded-2xl bg-[var(--glass-bg-scrolled)] p-2 lg:hidden"
           >
             {navItems.map((item) => (
               <a

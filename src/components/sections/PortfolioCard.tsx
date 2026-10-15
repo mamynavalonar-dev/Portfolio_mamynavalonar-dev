@@ -1,5 +1,7 @@
 "use client";
 
+import { PORTFOLIO_CARD_IMAGE_SIZES } from "@/lib/imageSizes";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import ResponsiveImage from "@/components/ui/ResponsiveImage";
 import { ArrowRight, ArrowUpRight, Eye } from "lucide-react";
@@ -25,7 +27,7 @@ export default function PortfolioCard({
 }: Props) {
   return (
     <motion.article
-      initial={{ opacity: 0, x: index % 2 === 0 ? -50 : 50, y: 20 }}
+      initial={false}
       whileInView={{ opacity: 1, x: 0, y: 0 }}
       viewport={{ once: true, amount: 0.15 }}
       transition={{ duration: 0.25, delay: index * 0.06 }}
@@ -35,6 +37,7 @@ export default function PortfolioCard({
       <div className="relative w-full h-44 sm:h-48 rounded-2xl overflow-hidden border border-white/10 bg-white/[0.03] mb-4">
         {image ? (
           <ResponsiveImage
+            sizes={PORTFOLIO_CARD_IMAGE_SIZES}
             src={image}
             alt={`Aperçu du projet ${title}`}
             loading="lazy"
@@ -63,7 +66,7 @@ export default function PortfolioCard({
         )}
       </div>
 
-      <h3 className="text-[17px] font-semibold mb-2 leading-tight">{title}</h3>
+      <h3 className="text-[17px] font-semibold mb-2 leading-tight">{id ? <Link href={`/portfolio/${id}`} prefetch={false} className="hover:underline focus-visible:underline">{title}</Link> : title}</h3>
 
       <p className="text-[13px] text-white/60 leading-relaxed line-clamp-2 min-h-[38px]">
         {description}

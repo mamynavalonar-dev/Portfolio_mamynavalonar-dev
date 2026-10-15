@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 import type usePortfolio from "@/hooks/usePortfolio";
@@ -8,6 +8,7 @@ import useDialogFocus from "@/hooks/useDialogFocus";
 import PortfolioCard from "./PortfolioCard";
 import PortfolioModal from "./PortfolioModal";
 import { Project } from "@/types";
+import { PORTFOLIO_CARD_IMAGE_SIZES } from "@/lib/imageSizes";
 import ResponsiveImage from "@/components/ui/ResponsiveImage";
 
 const smoothEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
@@ -31,7 +32,7 @@ export default function PortfolioShowcase({
 
   const [activeProject, setActiveProject] = useState<Project | null>(null);
 
-  const displayedProjects = showAllProjects ? projects : projects.slice(0, 3);
+  const displayedProjects = useMemo(() => showAllProjects ? projects : projects.slice(0, 3), [showAllProjects, projects]);
 
   return (
     <>
@@ -64,7 +65,7 @@ export default function PortfolioShowcase({
               <X size={18} />
             </button>
 
-            <motion.img
+            <motion.div
               initial={{
                 scale: 0.92,
                 opacity: 0,
@@ -78,10 +79,10 @@ export default function PortfolioShowcase({
                 opacity: 0,
               }}
               transition={{ duration: 0.18 }}
-              src={previewImage}
-              alt={`Certificat : ${previewTitle}`}
-              className="max-w-[88vw] max-h-[88vh] rounded-3xl object-contain"
-            />
+              className="max-w-[88vw] max-h-[88vh]"
+            >
+              <ResponsiveImage src={previewImage} alt={`Certificat : ${previewTitle}`} sizes="88vw" width={1600} height={1200} className="max-w-[88vw] max-h-[88vh] w-auto h-auto rounded-3xl object-contain" />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -92,7 +93,7 @@ export default function PortfolioShowcase({
       >
         {/* HEADER */}
         <motion.div
-          initial={{ opacity: 0, y: 45 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.28 }}
           className="text-center mb-8"
@@ -161,7 +162,7 @@ export default function PortfolioShowcase({
             id="portfolio-results"
             aria-busy={loading}
             key={activeTab}
-            initial={{ opacity: 0, y: 25 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -15 }}
             transition={{ duration: 0.2 }}
@@ -171,6 +172,7 @@ export default function PortfolioShowcase({
               <div className="space-y-8">
                 <motion.div
                   layout
+                  layoutDependency={displayedProjects}
                   transition={{
                     layout: {
                       duration: 0.25,
@@ -185,11 +187,8 @@ export default function PortfolioShowcase({
                         <motion.div
                           key={item.id}
                           layout
-                          initial={{
-                            opacity: 0,
-                            y: 40,
-                            scale: 0.96,
-                          }}
+                          layoutDependency={displayedProjects}
+                          initial={false}
                           animate={{
                             opacity: 1,
                             y: 0,
@@ -224,6 +223,7 @@ export default function PortfolioShowcase({
                 {!loading && projects.length > 3 && (
                   <motion.div
                     layout
+                    layoutDependency={showAllProjects}
                     transition={{
                       duration: 0.22,
                       ease: smoothEase,
@@ -232,6 +232,7 @@ export default function PortfolioShowcase({
                   >
                     <motion.button
                       layout
+                      layoutDependency={showAllProjects}
                       whileHover={{
                         scale: 1.04,
                       }}
@@ -244,10 +245,7 @@ export default function PortfolioShowcase({
                       <AnimatePresence mode="wait">
                         <motion.div
                           key={showAllProjects ? "less" : "more"}
-                          initial={{
-                            opacity: 0,
-                            y: 8,
-                          }}
+                          initial={false}
                           animate={{
                             opacity: 1,
                             y: 0,
@@ -289,11 +287,7 @@ export default function PortfolioShowcase({
                       key={item.id}
                       type="button"
                       aria-label={`Agrandir le certificat : ${item.title}`}
-                      initial={{
-                        opacity: 0,
-                        y: 25,
-                        scale: 0.96,
-                      }}
+                      initial={false}
                       whileInView={{
                         opacity: 1,
                         y: 0,
@@ -313,6 +307,7 @@ export default function PortfolioShowcase({
                     >
                       <div className="rounded-2xl overflow-hidden border border-white/10 h-56">
                         <ResponsiveImage
+                          sizes={PORTFOLIO_CARD_IMAGE_SIZES}
                           src={item.image_url}
                           alt={`Certificat : ${item.title}`}
                           loading="lazy"
@@ -337,11 +332,7 @@ export default function PortfolioShowcase({
                     techStacks?.map((item, index) => (
                       <motion.div
                         key={item.id}
-                        initial={{
-                          opacity: 0,
-                          scale: 0.9,
-                          y: 20,
-                        }}
+                        initial={false}
                         whileInView={{
                           opacity: 1,
                           scale: 1,
@@ -362,6 +353,9 @@ export default function PortfolioShowcase({
 
                           {item.logo_url ? (
                             <ResponsiveImage
+                              sizes="56px"
+                              width={112}
+                              height={112}
                               src={item.logo_url}
                               alt={item.name}
                               className="relative z-10 w-[56px] h-[56px] object-contain"

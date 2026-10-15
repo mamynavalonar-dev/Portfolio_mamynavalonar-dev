@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Sidebar from "@/app/admin/Sidebar";
+import useAdminCachedState from "@/hooks/useAdminCachedState";
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Swal from "sweetalert2";
 import { PortfolioComment } from "@/types";
@@ -16,12 +17,32 @@ import {
 } from "lucide-react";
 
 export default function AdminCommentsPage() {
-  const [comments, setComments] = useState<PortfolioComment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [comments, setComments, hasSnapshot] = useAdminCachedState<PortfolioComment[]>("comments", []);
+  const [loading, setLoading] = useState(() => !hasSnapshot());
+  const [readError, setReadError] = useState("");
+  const readRequest = useRef(0);
+  const pendingActions = useRef(new Set<number>());
   const [replyText, setReplyText] = useState<Record<number, string>>({});
 
+  const fetchComments = useCallback(async () => {
+    const requestId = ++readRequest.current;
+    setLoading(!hasSnapshot());
+    try {
+      const { data, error } = await supabase.from("comments").select("*")
+        .order("is_pinned", { ascending: false }).order("created_at", { ascending: false });
+      if (error) throw error;
+      if (requestId !== readRequest.current) return;
+      setComments(data || []);
+      setReadError("");
+    } catch {
+      if (requestId === readRequest.current) setReadError("Lecture indisponible. Les commentaires déjà chargés sont conservés.");
+    } finally {
+      if (requestId === readRequest.current) setLoading(false);
+    }
+  }, [hasSnapshot, setComments]);
+
   useEffect(() => {
-    fetchComments();
+    const timer = window.setTimeout(() => void fetchComments(), 0);
 
     const channel = supabase
       .channel("comments-realtime")
@@ -39,22 +60,18 @@ export default function AdminCommentsPage() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      window.clearTimeout(timer);
+      readRequest.current += 1;
+      void supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchComments]);
 
-  async function fetchComments() {
-    setLoading(true);
 
-    const { data } = await supabase
-      .from("comments")
-      .select("*")
-      .order("is_pinned", { ascending: false })
-      .order("created_at", { ascending: false });
 
-    setComments(data || []);
-    setLoading(false);
-  };
+  const showActionError = () => Swal.fire({
+    title: "Échec", text: "L'opération n'a pas été confirmée. Réessayez.",
+    icon: "error", background: "#0f0f0f", color: "#fff",
+  });
 
   const deleteComment = async (id: number) => {
     const result = await Swal.fire({
@@ -72,7 +89,10 @@ export default function AdminCommentsPage() {
 
     if (!result.isConfirmed) return;
 
-    await supabase.from("comments").delete().eq("id", id);
+    try {
+      const { data, error } = await supabase.from("comments").delete().eq("id", id).select("id").single();
+      if (error || !data) throw error || new Error("Commentaire introuvable");
+    } catch { await showActionError(); return; }
 
     setComments((prev) => prev.filter((item) => item.id !== id));
 
@@ -88,14 +108,16 @@ export default function AdminCommentsPage() {
   };
 
   const togglePin = async (id: number, current: boolean) => {
+    if (pendingActions.current.has(id)) return;
+    pendingActions.current.add(id);
+    try {
     const newValue = !current;
 
-    await supabase
-      .from("comments")
-      .update({
-        is_pinned: newValue,
-      })
-      .eq("id", id);
+    try {
+      const { data, error } = await supabase.from("comments")
+        .update({ is_pinned: newValue }).eq("id", id).select("id").single();
+      if (error || !data) throw error || new Error("Commentaire introuvable");
+    } catch { await showActionError(); return; }
 
     setComments((prev) =>
       prev.map((item) =>
@@ -107,19 +129,25 @@ export default function AdminCommentsPage() {
           : item,
       ),
     );
+    } catch { await showActionError(); }
+    finally { pendingActions.current.delete(id); }
   };
 
-  const addLike = async (id: number, likes: number, liked: boolean) => {
+  const addLike = async (id: number) => {
+    if (pendingActions.current.has(id)) return;
+    pendingActions.current.add(id);
+    try {
     const { data, error } = await supabase.rpc(
       "toggle_admin_comment_like",
       { p_comment_id: id },
     );
 
-    if (error) return;
+    if (error || !data) { await showActionError(); return; }
 
     const updated = Array.isArray(data) ? data[0] : data;
-    const newLiked = updated?.liked_by_admin ?? !liked;
-    const newLikes = updated?.likes ?? likes;
+    if (typeof updated?.liked_by_admin !== "boolean" || typeof updated?.likes !== "number") { await showActionError(); return; }
+    const newLiked = updated.liked_by_admin;
+    const newLikes = updated.likes;
 
     setComments((prev) =>
       prev.map((item) =>
@@ -132,9 +160,14 @@ export default function AdminCommentsPage() {
           : item,
       ),
     );
+    } catch { await showActionError(); }
+    finally { pendingActions.current.delete(id); }
   };
 
   const sendReply = async (commentId: number) => {
+    if (pendingActions.current.has(commentId)) return;
+    pendingActions.current.add(commentId);
+    try {
     const text = replyText[commentId];
 
     if (!text?.trim()) return;
@@ -144,10 +177,11 @@ export default function AdminCommentsPage() {
       { p_comment_id: commentId, p_message: text },
     );
 
-    if (error) return;
+    if (error || !data) { await showActionError(); return; }
 
     const updated = Array.isArray(data) ? data[0] : data;
-    const updatedReplies = updated?.replies ?? [];
+    if (!Array.isArray(updated?.replies)) { await showActionError(); return; }
+    const updatedReplies = updated.replies;
 
     setComments((prev) =>
       prev.map((item) =>
@@ -164,11 +198,12 @@ export default function AdminCommentsPage() {
       ...prev,
       [commentId]: "",
     }));
+    } catch { await showActionError(); }
+    finally { pendingActions.current.delete(commentId); }
   };
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
-      <Sidebar />
 
       <main className="lg:ml-[250px] min-h-screen px-4 sm:px-6 lg:px-8 pt-[90px] lg:pt-8 pb-8">
         <div className="max-w-[1250px] mx-auto">
@@ -193,7 +228,8 @@ export default function AdminCommentsPage() {
 
           {/* CONTENT */}
           <div className="space-y-4">
-            {loading ? (
+            {readError && <p role="alert" className="mb-4 text-sm text-amber-200">{readError}</p>}
+          {loading ? (
               <div className="rounded-3xl border border-white/10 bg-white/[0.03] py-20 text-center text-white/40">
                 Chargement des commentaires...
               </div>
@@ -237,6 +273,7 @@ export default function AdminCommentsPage() {
 
                         {comment.image_url && (
                           <ResponsiveImage
+                          sizes="(max-width: 639px) calc(100vw - 96px), 260px"
                             src={comment.image_url}
                             alt={`Image jointe au commentaire de ${comment.name}`}
                             loading="lazy"
@@ -256,13 +293,7 @@ export default function AdminCommentsPage() {
                       {/* ACTION */}
                       <div className="flex xl:flex-col flex-row gap-2 shrink-0">
                         <button
-                          onClick={() =>
-                            addLike(
-                              comment.id,
-                              comment.likes,
-                              Boolean(comment.liked_by_admin),
-                            )
-                          }
+                          onClick={() => void addLike(comment.id)}
                           className={`w-11 h-11 rounded-2xl border flex items-center justify-center transition ${
                             comment.liked_by_admin
                               ? "bg-pink-500/20 border-pink-500/30 text-pink-300"

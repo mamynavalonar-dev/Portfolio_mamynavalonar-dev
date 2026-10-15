@@ -1,16 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Sidebar from "@/app/admin/Sidebar";
+import useAdminCachedState from "@/hooks/useAdminCachedState";
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import ResponsiveImage from "@/components/ui/ResponsiveImage";
 import { supabase } from "@/lib/supabase";
 import { Plus, Trash2, Pencil, X, Upload } from "lucide-react";
 import Swal from "sweetalert2";
+import { saveAdminImageRecord } from "@/lib/adminImageSave";
+import { revalidatePortfolio } from "@/lib/revalidatePortfolio";
 import { TechStack } from "@/types";
+import useDialogFocus from "@/hooks/useDialogFocus";
+import { selectHeroTechnologies } from "@/lib/journey";
 
 export default function TechStackPage() {
-  const [techStacks, setTechStacks] = useState<TechStack[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [techStacks, setTechStacks, hasSnapshot] = useAdminCachedState<TechStack[]>("tech", []);
+  const [loading, setLoading] = useState(() => !hasSnapshot());
 
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
@@ -18,11 +23,37 @@ export default function TechStackPage() {
   const [name, setName] = useState("");
   const [logo, setLogo] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
+  const [heroVisible, setHeroVisible] = useState(true);
+  const [heroOrder, setHeroOrder] = useState(0);
 
   const [saving, setSaving] = useState(false);
+  const [storedUrl, setStoredUrl] = useState("");
+  const [readError, setReadError] = useState("");
+  const readRequest = useRef(0);
+  const dialogRef = useDialogFocus(open, () => { if (!saving) setOpen(false); });
+
+  useEffect(() => () => {
+    if (preview.startsWith("blob:")) URL.revokeObjectURL(preview);
+  }, [preview]);
+
+  const fetchTechStacks = useCallback(async () => {
+    const requestId = ++readRequest.current;
+    try {
+      const { data, error } = await supabase.from("tech_stack")
+        .select("*").order("created_at", { ascending: true });
+      if (error) throw error;
+      if (requestId !== readRequest.current) return;
+      setTechStacks([...(data || [])].sort((a, b) => (a.hero_order ?? 0) - (b.hero_order ?? 0) || a.created_at.localeCompare(b.created_at)));
+      setReadError("");
+    } catch {
+      if (requestId === readRequest.current) setReadError("Lecture indisponible. Les données déjà chargées sont conservées.");
+    } finally {
+      if (requestId === readRequest.current) setLoading(false);
+    }
+  }, [setTechStacks]);
 
   useEffect(() => {
-    fetchTechStacks();
+    const timer = window.setTimeout(() => void fetchTechStacks(), 0);
 
     const channel = supabase
       .channel("techstack-realtime")
@@ -40,30 +71,22 @@ export default function TechStackPage() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      window.clearTimeout(timer);
+      readRequest.current += 1;
+      void supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchTechStacks]);
 
-  async function fetchTechStacks() {
-    const { data } = await supabase
-      .from("tech_stack")
-      .select("*");
 
-    const sorted = (data || []).sort(
-      (a, b) =>
-        new Date(a.created_at).getTime() -
-        new Date(b.created_at).getTime()
-    );
-
-    setTechStacks(sorted);
-    setLoading(false);
-  };
 
   const resetForm = () => {
     setName("");
     setLogo(null);
     setPreview("");
+    setStoredUrl("");
     setEditId(null);
+    setHeroVisible(true);
+    setHeroOrder(0);
   };
 
   const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,50 +99,33 @@ export default function TechStackPage() {
   };
 
   const handleSave = async () => {
-    if (!name.trim()) return;
-
+    if (!name.trim() || saving) return;
     setSaving(true);
-
-    let logoUrl = preview;
-
-    if (logo) {
-      const fileName = `tech-${Date.now()}-${logo.name}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("tech-stack")
-        .upload(fileName, logo);
-
-      if (!uploadError) {
-        const { data } = supabase.storage
-          .from("tech-stack")
-          .getPublicUrl(fileName);
-
-        logoUrl = data.publicUrl;
-      }
-    }
-
-    if (editId) {
-      await supabase
-        .from("tech_stack")
-        .update({
-          name,
-          logo_url: logoUrl,
-        })
-        .eq("id", editId);
-    } else {
-      await supabase.from("tech_stack").insert([
-        {
-          name,
-          logo_url: logoUrl,
+    try {
+      await saveAdminImageRecord({
+        table: "tech_stack", bucket: "tech-stack", imageField: "logo_url",
+        labelField: "name", label: name, id: editId,
+        file: logo, storedUrl,
+        heroVisible, heroOrder,
+        onConfirmed: (record) => {
+          const confirmed = record as unknown as TechStack;
+          readRequest.current += 1;
+          setLoading(false);
+          setTechStacks((previous) => [...previous.filter((item) => item.id !== confirmed.id), confirmed].sort((a, b) => (a.hero_order ?? 0) - (b.hero_order ?? 0) || a.created_at.localeCompare(b.created_at)));
         },
-      ]);
+      });
+      void revalidatePortfolio();
+      setOpen(false);
+      resetForm();
+      void fetchTechStacks();
+    } catch (error) {
+      await Swal.fire({
+        title: "Échec", text: error instanceof Error ? error.message : "Impossible d'enregistrer.",
+        icon: "error", background: "#111", color: "#fff",
+      });
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
-    setOpen(false);
-    resetForm();
-
-    fetchTechStacks();
   };
 
   const handleDelete = async (id: number) => {
@@ -139,12 +145,15 @@ export default function TechStackPage() {
 
     if (!result.isConfirmed) return;
 
-    const { error } = await supabase
-      .from("tech_stack")
-      .delete()
-      .eq("id", id);
+    let error: unknown;
+    try {
+      const result = await supabase.from("tech_stack").delete().eq("id", id).select("id").single();
+      error = result.error || (!result.data ? new Error("Élément introuvable") : null);
+    } catch (caught) { error = caught; }
 
     if (!error) {
+      readRequest.current += 1;
+      void revalidatePortfolio();
       setTechStacks((prev) =>
         prev.filter((item) => item.id !== id)
       );
@@ -173,15 +182,15 @@ export default function TechStackPage() {
     setEditId(item.id);
     setName(item.name);
     setPreview(item.logo_url);
+    setStoredUrl(item.logo_url);
+    setLogo(null);
+    setHeroVisible(item.hero_visible !== false);
+    setHeroOrder(item.hero_order ?? 0);
     setOpen(true);
   };
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
-      {/* SIDEBAR */}
-      <div className="fixed left-0 top-0 h-screen z-40">
-        <Sidebar />
-      </div>
 
       {/* MAIN */}
       <main className="ml-0 lg:ml-[250px] min-h-screen">
@@ -194,7 +203,7 @@ export default function TechStackPage() {
               </h1>
 
               <p className="text-sm text-white/40 mt-1">
-                Gérez la stack technique
+                Gérez les logos et leur défilement sur l’accueil · {selectHeroTechnologies(techStacks).length} affichées
               </p>
             </div>
 
@@ -211,6 +220,7 @@ export default function TechStackPage() {
           </div>
 
           {/* GRID */}
+          {readError && <p role="alert" className="mb-4 text-sm text-amber-200">{readError} <button type="button" className="underline" onClick={() => void fetchTechStacks()}>Réessayer</button></p>}
           {loading ? (
             <div className="text-white/40 text-sm">
               Chargement...
@@ -230,6 +240,7 @@ export default function TechStackPage() {
                     <div className="w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
                       {item.logo_url ? (
                         <ResponsiveImage
+                          sizes="64px"
                           src={item.logo_url}
                           alt={`Logo de ${item.name}`}
                           loading="lazy"
@@ -243,6 +254,7 @@ export default function TechStackPage() {
                     <div className="flex gap-2 ml-3">
                       <button
                         onClick={() => handleEdit(item)}
+                        aria-label={`Modifier ${item.name}`}
                         className="w-9 h-9 rounded-xl border border-white/10 hover:bg-white/10 flex items-center justify-center transition"
                       >
                         <Pencil size={14} />
@@ -250,6 +262,7 @@ export default function TechStackPage() {
 
                       <button
                         onClick={() => handleDelete(item.id)}
+                        aria-label={`Supprimer ${item.name}`}
                         className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 flex items-center justify-center hover:bg-red-500/20 transition"
                       >
                         <Trash2 size={14} />
@@ -260,6 +273,7 @@ export default function TechStackPage() {
                   <h2 className="text-[14px] sm:text-[15px] font-medium break-words leading-relaxed">
                     {item.name}
                   </h2>
+                  <p className="mt-2 text-xs text-white/65">{item.hero_visible === false ? "Masquée sur l’accueil" : `Bandeau de l’accueil · ordre ${item.hero_order ?? 0}`}</p>
                 </div>
               ))}
             </div>
@@ -270,10 +284,10 @@ export default function TechStackPage() {
       {/* MODAL */}
       {open && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center px-4 py-6">
-          <div className="w-full max-w-md rounded-3xl bg-[#111] border border-white/10 p-5 sm:p-6 max-h-[90vh] overflow-y-auto">
+          <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="tech-dialog-title" tabIndex={-1} className="w-full max-w-md rounded-3xl bg-[#111] border border-white/10 p-5 sm:p-6 max-h-[90vh] overflow-y-auto">
             {/* HEADER */}
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg sm:text-xl font-semibold">
+              <h2 id="tech-dialog-title" className="text-lg sm:text-xl font-semibold">
                 {editId ? "Modifier la technologie" : "Ajouter une technologie"}
               </h2>
 
@@ -282,6 +296,9 @@ export default function TechStackPage() {
                   setOpen(false);
                   resetForm();
                 }}
+                type="button"
+                disabled={saving}
+                aria-label="Fermer le formulaire de technologie"
                 className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center shrink-0"
               >
                 <X size={16} />
@@ -292,6 +309,7 @@ export default function TechStackPage() {
             <label className="border border-dashed border-white/10 rounded-2xl bg-[#0f0f0f] h-40 sm:h-44 flex flex-col items-center justify-center cursor-pointer overflow-hidden mb-4">
               {preview ? (
                 <ResponsiveImage
+                          sizes="64px"
                   src={preview}
                   alt="Aperçu du logo à importer"
                   className="w-full h-full object-cover"
@@ -312,6 +330,7 @@ export default function TechStackPage() {
               <input
                 type="file"
                 hidden
+                disabled={saving}
                 accept="image/*"
                 onChange={handleImage}
               />
@@ -320,10 +339,14 @@ export default function TechStackPage() {
             {/* INPUT */}
             <input
               placeholder="Nom de la technologie"
+              aria-label="Nom de la technologie"
+              disabled={saving}
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-3 rounded-2xl bg-[#0f0f0f] border border-white/10 outline-none mb-5 text-sm"
             />
+            <label className="mb-4 flex min-h-11 items-center gap-3 text-sm text-white/80"><input type="checkbox" disabled={saving} checked={heroVisible} onChange={(event) => setHeroVisible(event.target.checked)} className="h-4 w-4 accent-emerald-300" />Afficher dans le bandeau de l’accueil</label>
+            <label className="mb-5 block text-sm text-white/80">Ordre dans le bandeau<input type="number" min={0} max={9999} step={1} disabled={saving} value={heroOrder} onChange={(event) => setHeroOrder(Number(event.target.value))} className="mt-2 w-full rounded-xl border border-white/10 bg-[#0f0f0f] px-4 py-3" /></label>
 
             {/* BUTTONS */}
             <div className="flex flex-col sm:flex-row justify-end gap-3">
@@ -332,6 +355,7 @@ export default function TechStackPage() {
                   setOpen(false);
                   resetForm();
                 }}
+                disabled={saving}
                 className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 transition"
               >
                 Annuler

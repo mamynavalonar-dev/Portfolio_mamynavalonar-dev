@@ -1,0 +1,21 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+const m = vi.hoisted(() => ({ auth: vi.fn(), from: vi.fn(), upsert: vi.fn(), single: vi.fn(), tag: vi.fn(), path: vi.fn() }));
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/adminAuth", () => ({ requireAdminUser: m.auth, adminErrorResponse: (error: { status?: number }) => Response.json({ ok: false }, { status: error.status ?? 500 }) }));
+vi.mock("next/server", () => ({ after: (callback: () => void) => callback() }));
+vi.mock("next/cache", () => ({ revalidateTag: m.tag, revalidatePath: m.path }));
+vi.mock("@/lib/supabaseAdmin", () => ({ createSupabaseAdmin: () => ({ from: m.from }) }));
+import { GET, PATCH } from "@/app/api/admin/social-settings/route";
+const values = { heading: "Retrouvez-moi", introduction: "Échangeons sur ces réseaux." };
+const request = (body: unknown = values, origin = "https://portfolio.test") => new Request("https://portfolio.test/api/admin/social-settings", { method: "PATCH", headers: { origin, "Content-Type": "application/json" }, body: typeof body === "string" ? body : JSON.stringify(body) });
+beforeEach(() => { vi.resetAllMocks(); m.auth.mockResolvedValue({ id: "admin" }); const builder = { select: () => builder, eq: () => builder, abortSignal: () => builder, maybeSingle: m.single, upsert: m.upsert }; m.upsert.mockReturnValue(builder); m.from.mockReturnValue(builder); m.single.mockResolvedValue({ data: values, error: null }); });
+afterEach(() => vi.restoreAllMocks());
+describe("social presentation API", () => {
+  it.each([401,403])("rejects unauthorized requests with %i before accessing configuration", async (status) => { m.auth.mockRejectedValue({ status }); expect((await GET()).status).toBe(status); expect((await PATCH(request())).status).toBe(status); expect(m.from).not.toHaveBeenCalled(); });
+  it("rejects cross-origin writes before checking the role", async () => { expect((await PATCH(request(values,"https://other.test"))).status).toBe(403); expect(m.auth).not.toHaveBeenCalled(); });
+  it("returns an uncached configuration for the authenticated admin", async () => { const response = await GET(); expect(response.status).toBe(200); expect(response.headers.get("cache-control")).toBe("no-store"); expect((await response.json()).settings).toEqual(values); });
+  it("updates the fixed singleton and invalidates the home only after confirmed persistence", async () => { expect((await PATCH(request())).status).toBe(200); expect(m.upsert).toHaveBeenCalledWith({ id: 1, ...values }, { onConflict: "id" }); expect(m.single.mock.invocationCallOrder[0]).toBeLessThan(m.tag.mock.invocationCallOrder[0]); expect(m.path).toHaveBeenCalledWith("/"); });
+  it("does not invalidate the page or report success after a failed write", async () => { m.single.mockResolvedValue({ data: null, error: { code: "XX000" } }); expect((await PATCH(request())).status).toBe(500); expect(m.tag).not.toHaveBeenCalled(); });
+  it("rejects malformed JSON, excessive bodies and invalid settings before writing", async () => { expect((await PATCH(request("{"))).status).toBe(400); expect((await PATCH(request("x".repeat(4001)))).status).toBe(413); expect((await PATCH(request({ heading: "x", introduction: "" }))).status).toBe(400); expect(m.upsert).not.toHaveBeenCalled(); });
+  it("confirms the save while exposing a delayed cache refresh", async () => { m.tag.mockImplementation(() => { throw new Error(); }); const response = await PATCH(request()); expect(response.status).toBe(200); expect((await response.json()).revalidated).toBe(false); });
+});

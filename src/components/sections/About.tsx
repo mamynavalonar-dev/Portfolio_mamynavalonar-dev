@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { motion, useReducedMotion, Variants } from "framer-motion";
 import { Code, Award, Globe, FileText, ArrowUpRight } from "lucide-react";
 import ProfileCard from "@/components/ui/ProfileCard";
 import styles from "./About.module.css";
+import useMediaQuery from "@/hooks/useMediaQuery";
 
 /* ================== ANIMATION ================== */
 
@@ -64,22 +64,13 @@ export default function About({
   initialProjectCount?: number;
   initialCertificateCount?: number;
 }) {
-  const [isMobile, setIsMobile] = useState(false);
+  const desktopProfile = useMediaQuery("(min-width: 768px)");
   const reducedMotion = useReducedMotion();
 
   const projectCount = initialProjectCount;
   const certificateCount = initialCertificateCount;
 
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
 
-    check();
-    window.addEventListener("resize", check);
-
-    return () => {
-      window.removeEventListener("resize", check);
-    };
-  }, []);
 
 
   const scrollToPortfolio = () => {
@@ -113,11 +104,11 @@ export default function About({
   return (
     <section
       id="about"
+      className={styles.section}
       style={{
         minHeight: "100vh",
         display: "flex",
         alignItems: "flex-start",
-        padding: isMobile ? "60px 24px 30px" : "80px 60px 30px 120px",
         position: "relative",
         overflow: "hidden",
       }}
@@ -135,9 +126,9 @@ export default function About({
 
       <div style={{ width: "100%", position: "relative", zIndex: 1 }}>
         <div
+          className={styles.row}
           style={{
             display: "flex",
-            flexDirection: isMobile ? "column" : "row",
             alignItems: "center",
             justifyContent: "space-between",
             gap: "32px",
@@ -146,7 +137,7 @@ export default function About({
           {/* LEFT */}
           <motion.div
             variants={container}
-            initial="hidden"
+            initial={false}
             whileInView="show"
             viewport={{ once: false, amount: 0.22, margin: "-60px" }}
             style={{
@@ -194,12 +185,12 @@ export default function About({
                   },
                 },
               }}
+              className={styles.description}
               style={{
                 marginTop: 18,
                 fontSize: 14,
                 color: "rgba(255,255,255,0.76)",
                 lineHeight: 1.75,
-                maxWidth: isMobile ? "100%" : "490px",
               }}
             >
               Développeur Full Stack junior, je développe des applications web
@@ -320,15 +311,15 @@ export default function About({
           </motion.div>
 
           {/* PROFILE CARD */}
-          {!isMobile && (
+          {
             <motion.div
               variants={slideLeft}
-              initial="hidden"
+              className={styles.profile}
+              initial={false}
               whileInView="show"
               viewport={{ once: false, amount: 0.22 }}
               style={{
                 width: "48%",
-                display: "flex",
                 justifyContent: "flex-end",
               }}
             >
@@ -340,23 +331,23 @@ export default function About({
                 handle="mamynavalonar-dev"
                 status="Disponible"
                 contactText="Me contacter"
-                enableTilt
+                enableTilt={desktopProfile}
                 behindGlowEnabled={false}
                 onContactClick={scrollToContact}
               />
             </motion.div>
-          )}
+          }
         </div>
 
         {/* CARDS */}
         <motion.div
+          className={styles.stats}
           variants={container}
-          initial="hidden"
+          initial={false}
           whileInView="show"
           viewport={{ once: false, amount: 0.22 }}
           style={{
             display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
             gap: 18,
             marginTop: 36,
           }}
